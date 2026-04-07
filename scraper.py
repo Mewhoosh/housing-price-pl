@@ -449,6 +449,37 @@ def main() -> None:
     combined.to_csv(combined_path, index=False, encoding="utf-8-sig")
     log.info("Saved combined dataset (%d rows) → %s", len(combined), combined_path)
 
+    _save_summary(combined, counts, null_pct)
+
+
+def _save_summary(
+    combined: "pd.DataFrame",
+    counts: "pd.Series",
+    null_pct: "pd.Series",
+) -> None:
+    """Save a human-readable scrape summary to data/raw/scrape_summary.txt."""
+    from datetime import datetime
+
+    summary_path = OUTPUT_DIR / "scrape_summary.txt"
+    lines: list[str] = [
+        f"Scrape summary — {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}",
+        "=" * 50,
+        "",
+        "Record count per city:",
+    ]
+    for city, n in counts.items():
+        lines.append(f"  {city:<15} {n:>6}")
+    lines.append(f"  {'TOTAL':<15} {len(combined):>6}")
+    lines += [
+        "",
+        "Null % per column:",
+    ]
+    for col, pct in null_pct.items():
+        lines.append(f"  {col:<20} {pct:>5.1f}%")
+
+    summary_path.write_text("\n".join(lines), encoding="utf-8")
+    log.info("Scrape summary saved → %s", summary_path)
+
 
 if __name__ == "__main__":
     main()
