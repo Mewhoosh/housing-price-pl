@@ -18,95 +18,26 @@ from bs4 import BeautifulSoup
 # ---------------------------------------------------------------------------
 
 CITY_SLUGS: dict[str, str] = {
-    "warszawa":  "Warszawa",
-    "krakow":    "Kraków",
-    "wroclaw":   "Wrocław",
-    "poznan":    "Poznań",
-    "gdansk":    "Gdańsk",
-    "lodz":      "Łódź",
-    "szczecin":  "Szczecin",
-    "bydgoszcz": "Bydgoszcz",
-    "lublin":    "Lublin",
-    "katowice":  "Katowice",
-    "bialystok": "Białystok",
-    "rzeszow":   "Rzeszów",
-    "kielce":    "Kielce",
-    "olsztyn":   "Olsztyn",
-    "torun":     "Toruń",
+    "warszawa":     "Warszawa",
+    "krakow":       "Kraków",
+    "wroclaw":      "Wrocław",
+    "poznan":       "Poznań",
+    "gdansk":       "Gdańsk",
+    "gdynia":       "Gdynia",
+    "lodz":         "Łódź",
+    "szczecin":     "Szczecin",
+    "bydgoszcz":    "Bydgoszcz",
+    "lublin":       "Lublin",
+    "katowice":     "Katowice",
+    "czestochowa":  "Częstochowa",
+    "bialystok":    "Białystok",
+    "rzeszow":      "Rzeszów",
+    "kielce":       "Kielce",
+    "olsztyn":      "Olsztyn",
+    "torun":        "Toruń",
 }
 
-DISTRICT_SLUGS: dict[str, list[str]] = {
-    "Warszawa": [
-        "mazowieckie/warszawa/bemowo",
-        "mazowieckie/warszawa/bialoleka",
-        "mazowieckie/warszawa/bielany",
-        "mazowieckie/warszawa/mokotow",
-        "mazowieckie/warszawa/ochota",
-        "mazowieckie/warszawa/praga-polnoc",
-        "mazowieckie/warszawa/praga-poludnie",
-        "mazowieckie/warszawa/rembertow",
-        "mazowieckie/warszawa/srodmiescie",
-        "mazowieckie/warszawa/targowek",
-        "mazowieckie/warszawa/ursus",
-        "mazowieckie/warszawa/ursynow",
-        "mazowieckie/warszawa/wawer",
-        "mazowieckie/warszawa/wesola",
-        "mazowieckie/warszawa/wilanow",
-        "mazowieckie/warszawa/wlochy",
-        "mazowieckie/warszawa/wola",
-        "mazowieckie/warszawa/zoliborz",
-    ],
-    "Kraków": [
-        "malopolskie/krakow/bienczyce",
-        "malopolskie/krakow/biezanow-prokocim",
-        "malopolskie/krakow/bronowice",
-        "malopolskie/krakow/czyzyny",
-        "malopolskie/krakow/debniki",
-        "malopolskie/krakow/grzegorzki",
-        "malopolskie/krakow/krowodrza",
-        "malopolskie/krakow/lagiewniki-borek-falecki",
-        "malopolskie/krakow/mistrzejowice",
-        "malopolskie/krakow/nowa-huta",
-        "malopolskie/krakow/podgorze",
-        "malopolskie/krakow/podgorze-duchackie",
-        "malopolskie/krakow/pradnik-bialy",
-        "malopolskie/krakow/pradnik-czerwony",
-        "malopolskie/krakow/stare-miasto",
-        "malopolskie/krakow/swoszowice",
-        "malopolskie/krakow/wzgorza-krzeslawickie",
-        "malopolskie/krakow/zwierzyniec",
-    ],
-    "Wrocław": [
-        "dolnoslaskie/wroclaw/fabryczna",
-        "dolnoslaskie/wroclaw/krzyki",
-        "dolnoslaskie/wroclaw/psie-pole",
-        "dolnoslaskie/wroclaw/stare-miasto",
-        "dolnoslaskie/wroclaw/srodmiescie",
-    ],
-    "Poznań": [
-        "wielkopolskie/poznan/grunwald",
-        "wielkopolskie/poznan/jezyce",
-        "wielkopolskie/poznan/nowe-miasto",
-        "wielkopolskie/poznan/stare-miasto",
-        "wielkopolskie/poznan/wilda",
-    ],
-    "Gdańsk": [
-        "pomorskie/gdansk/chelm",
-        "pomorskie/gdansk/morena",
-        "pomorskie/gdansk/oliwa",
-        "pomorskie/gdansk/przymorze-wielkie",
-        "pomorskie/gdansk/srodmiescie",
-        "pomorskie/gdansk/wrzeszcz",
-        "pomorskie/gdansk/zaspa-mlyniec",
-    ],
-    "Łódź": [
-        "lodzkie/lodz/baluty",
-        "lodzkie/lodz/gorna",
-        "lodzkie/lodz/polesie",
-        "lodzkie/lodz/srodmiescie",
-        "lodzkie/lodz/widzew",
-    ],
-}
+DISTRICTS_CACHE_PATH = Path(__file__).parent / "data" / "districts_cache.json"
 
 BASE_URL   = "https://www.otodom.pl/pl/oferty/sprzedaz/mieszkanie/{city}"
 MAX_PAGES  = 25
@@ -114,9 +45,9 @@ DELAY_LO   = 2.0
 DELAY_HI   = 4.5
 OUTPUT_DIR = Path(__file__).parent / "data" / "raw"
 
-TEST_CITIES = {"Warszawa", "Białystok", "Katowice"}
-TEST_MAX_PAGES   = 1
-TEST_MAX_SLUGS   = 2
+TEST_CITIES    = {"Warszawa", "Białystok", "Katowice"}
+TEST_MAX_PAGES = 1
+TEST_MAX_SLUGS = 2
 
 ROOMS_MAP: dict[str, int] = {
     "ONE": 1, "TWO": 2, "THREE": 3, "FOUR": 4,
@@ -159,9 +90,19 @@ def _parse_args() -> argparse.Namespace:
         "--test",
         action="store_true",
         help=(
-            f"Quick validation run: {len(TEST_CITIES)} cities only, "
+            f"Validation run: {sorted(TEST_CITIES)}, "
             f"{TEST_MAX_PAGES} page per slug, "
-            f"{TEST_MAX_SLUGS} district slugs per city."
+            f"{TEST_MAX_SLUGS} district slugs per city. "
+            "Does not write any files."
+        ),
+    )
+    parser.add_argument(
+        "--refresh-districts",
+        action="store_true",
+        help=(
+            "Re-discover district slugs from Otodom for all cities "
+            "and update districts_cache.json. "
+            "Combine with --test to preview without saving."
         ),
     )
     return parser.parse_args()
@@ -305,6 +246,71 @@ def parse_listings(soup: BeautifulSoup, city_name: str) -> list[Listing]:
 
 
 # ---------------------------------------------------------------------------
+# District discovery
+# ---------------------------------------------------------------------------
+
+def discover_districts(
+    session: requests.Session,
+    city_slug: str,
+    city_name: str,
+) -> list[str]:
+    """Fetch city search page and extract all district-level slugs from <a> links.
+
+    District links contain the city base name in the path but do not end with it.
+    City-level paths repeat the city name as the last segment; district paths add
+    a unique suffix.
+
+    Example (Białystok):
+      city-level:  podlaskie/bialystok/bialystok/bialystok       <- ends with city, skip
+      district:    podlaskie/bialystok/bialystok/bialystok/antoniuk  <- keep
+    """
+    soup = fetch_page(session, city_slug, 1)
+    if soup is None:
+        log.warning("[%s] district discovery fetch failed", city_name)
+        return []
+
+    slugs: set[str] = set()
+
+    for a in soup.find_all("a", href=True):
+        href: str = a["href"]
+        if "/mieszkanie/" not in href:
+            continue
+
+        path = href.split("/mieszkanie/")[1].split("?")[0].rstrip("/")
+        parts = path.split("/")
+
+        if len(parts) < 3:
+            continue
+        if city_slug not in parts:
+            continue
+        if parts[-1] == city_slug:  # city-level path — skip
+            continue
+
+        slugs.add(path)
+
+    discovered = sorted(slugs)
+    log.info("[%s] discovered %d district slugs", city_name, len(discovered))
+    return discovered
+
+
+def load_districts_cache() -> dict[str, list[str]]:
+    """Load district slugs from cache file; return empty dict if absent."""
+    if DISTRICTS_CACHE_PATH.exists():
+        return json.loads(DISTRICTS_CACHE_PATH.read_text(encoding="utf-8"))
+    return {}
+
+
+def save_districts_cache(cache: dict[str, list[str]]) -> None:
+    """Persist district slugs cache to disk."""
+    DISTRICTS_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    DISTRICTS_CACHE_PATH.write_text(
+        json.dumps(cache, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    log.info("Districts cache saved → %s", DISTRICTS_CACHE_PATH)
+
+
+# ---------------------------------------------------------------------------
 # City scraper
 # ---------------------------------------------------------------------------
 
@@ -348,7 +354,7 @@ def main() -> None:
 
     if args.test:
         log.info(
-            "TEST MODE — cities: %s | pages: %d | max district slugs: %d",
+            "TEST MODE — cities: %s | pages: %d | max district slugs: %d | no files written",
             sorted(city_filter), max_pages, max_slugs,
         )
 
@@ -356,32 +362,55 @@ def main() -> None:
     session = requests.Session()
     session.headers.update(HEADERS)
 
+    # District slugs: refresh on demand, otherwise load from cache.
+    # If cache is absent, district scraping is skipped — run --refresh-districts first.
+    if args.refresh_districts:
+        log.info("Discovering district slugs for all cities...")
+        cache: dict[str, list[str]] = {}
+        for city_slug, city_name in CITY_SLUGS.items():
+            if city_filter and city_name not in city_filter:
+                continue
+            districts = discover_districts(session, city_slug, city_name)
+            if districts:
+                cache[city_name] = districts
+            time.sleep(random.uniform(DELAY_LO, DELAY_HI))
+        if args.test:
+            log.info("TEST MODE — discovered slugs not saved to cache")
+        else:
+            save_districts_cache(cache)
+    else:
+        cache = load_districts_cache()
+
     all_rows: list[dict] = []
 
     # Phase 1 — city-level slugs
     log.info("Phase 1: city-level scraping (%d cities)", len(CITY_SLUGS))
-    for slug, name in CITY_SLUGS.items():
-        if city_filter and name not in city_filter:
-            continue
-        log.info("=== [%s] city slug: %s ===", name, slug)
-        listings = scrape_city(session, slug, name, max_pages=max_pages)
-        if not listings:
-            log.warning("[%s] no listings — skipping", name)
-            continue
-        all_rows.extend(asdict(lst) for lst in listings)
-        log.info("[%s] +%d rows (running total: %d)", name, len(listings), len(all_rows))
-
-    # Phase 2 — district-level slugs
-    log.info("Phase 2: district-level scraping (%d cities)", len(DISTRICT_SLUGS))
-    for city_name, slugs in DISTRICT_SLUGS.items():
+    for city_slug, city_name in CITY_SLUGS.items():
         if city_filter and city_name not in city_filter:
             continue
-        active_slugs = slugs[:max_slugs] if max_slugs else slugs
+        log.info("=== [%s] city slug: %s ===", city_name, city_slug)
+        listings = scrape_city(session, city_slug, city_name, max_pages=max_pages)
+        if not listings:
+            log.warning("[%s] no listings — skipping", city_name)
+            continue
+        all_rows.extend(asdict(lst) for lst in listings)
+        log.info("[%s] +%d rows (running total: %d)", city_name, len(listings), len(all_rows))
+
+    # Phase 2 — district-level slugs from cache
+    log.info("Phase 2: district-level scraping")
+    for city_slug, city_name in CITY_SLUGS.items():
+        if city_filter and city_name not in city_filter:
+            continue
+        district_slugs = cache.get(city_name, [])
+        if not district_slugs:
+            log.info("[%s] no district slugs in cache — skipping", city_name)
+            continue
+        active_slugs = district_slugs[:max_slugs] if max_slugs else district_slugs
         log.info("=== [%s] %d district slugs ===", city_name, len(active_slugs))
-        for slug in active_slugs:
-            listings = scrape_city(session, slug, city_name, max_pages=max_pages)
+        for district_slug in active_slugs:
+            listings = scrape_city(session, district_slug, city_name, max_pages=max_pages)
             if not listings:
-                log.warning("[%s] slug=%s — no listings", city_name, slug)
+                log.warning("[%s] slug=%s — no listings", city_name, district_slug)
                 continue
             all_rows.extend(asdict(lst) for lst in listings)
 
@@ -390,11 +419,24 @@ def main() -> None:
         return
 
     combined = pd.DataFrame(all_rows)
-
     before = len(combined)
     combined = combined.drop_duplicates(subset=["url"]).reset_index(drop=True)
     log.info("Deduplicated: %d → %d rows (removed %d duplicates)",
              before, len(combined), before - len(combined))
+
+    counts = combined["city"].value_counts()
+    print("\n--- Record count per city ---")
+    for city, n in counts.items():
+        print(f"  {city:<15} {n:>6}")
+    print(f"  {'TOTAL':<15} {len(combined):>6}")
+
+    null_pct = combined.isna().mean().mul(100).round(1)
+    print("\n--- Null % per column ---")
+    print(null_pct.to_string())
+
+    if args.test:
+        log.info("TEST MODE — skipping CSV save")
+        return
 
     name_to_slug = {v: k for k, v in CITY_SLUGS.items()}
     for city_name, city_df in combined.groupby("city"):
@@ -406,16 +448,6 @@ def main() -> None:
     combined_path = OUTPUT_DIR / "otodom_all.csv"
     combined.to_csv(combined_path, index=False, encoding="utf-8-sig")
     log.info("Saved combined dataset (%d rows) → %s", len(combined), combined_path)
-
-    counts = combined["city"].value_counts()
-    print("\n--- Record count per city ---")
-    for city, n in counts.items():
-        print(f"  {city:<15} {n:>6}")
-    print(f"  {'TOTAL':<15} {len(combined):>6}")
-
-    null_pct = combined.isna().mean().mul(100).round(1)
-    print("\n--- Null % per column ---")
-    print(null_pct.to_string())
 
 
 if __name__ == "__main__":
