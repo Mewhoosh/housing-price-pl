@@ -48,13 +48,13 @@ def evaluate() -> None:
     # --- evaluate candidate ---
     candidate = joblib.load(candidate_path)
     mae_new   = _mae(candidate, feats.X_test, y_true)
-    log.info("Candidate MAE: %,.0f PLN", mae_new)
+    log.info("Candidate MAE: %s PLN", f"{mae_new:,.0f}")
 
     # --- evaluate production (if exists) ---
     if production_path.exists():
         production = joblib.load(production_path)
         mae_old    = _mae(production, feats.X_test, y_true)
-        log.info("Production MAE on new test set: %,.0f PLN", mae_old)
+        log.info("Production MAE on new test set: %s PLN", f"{mae_old:,.0f}")
     else:
         mae_old = float("inf")
         log.info("No production model yet — candidate will be promoted automatically")
@@ -62,14 +62,14 @@ def evaluate() -> None:
     # --- promote? ---
     if mae_new < mae_old:
         log.info(
-            "Candidate is BETTER (%.0f < %.0f PLN) — promoting to production",
-            mae_new, mae_old,
+            "Candidate is BETTER (%s < %s PLN) — promoting to production",
+            f"{mae_new:,.0f}", f"{mae_old:,.0f}",
         )
         _promote(candidate_path, production_path, mae_new, mae_old)
     else:
         log.warning(
-            "Candidate is NOT better (%.0f >= %.0f PLN) — keeping current production model",
-            mae_new, mae_old,
+            "Candidate is NOT better (%s >= %s PLN) — keeping current production model",
+            f"{mae_new:,.0f}", f"{mae_old:,.0f}",
         )
 
 
