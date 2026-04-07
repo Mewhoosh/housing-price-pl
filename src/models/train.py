@@ -2,17 +2,22 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import shutil
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
+import dagshub
 import joblib
 import mlflow
 import numpy as np
+from dotenv import load_dotenv
 from sklearn.metrics import mean_absolute_error, r2_score
 from xgboost import XGBRegressor
 
 from src.features.build_features import build_features
+
+load_dotenv()  # loads .env — MLFLOW_TRACKING_URI, USERNAME, PASSWORD
 
 log = logging.getLogger(__name__)
 
@@ -55,6 +60,13 @@ def train() -> None:
         datefmt="%H:%M:%S",
     )
 
+    # --- DagsHub MLflow tracking ---
+    dagshub.init(
+        repo_owner="Mewhoosh",
+        repo_name="housing-price-pl",
+        mlflow=True,
+    )
+
     # --- snapshot raw data before training ---
     _snapshot_data()
 
@@ -83,7 +95,7 @@ def train() -> None:
         mape = float(np.mean(np.abs((y_true - y_pred) / y_true)) * 100)
         r2   = float(r2_score(y_true, y_pred))
 
-        log.info("MAE: %,.0f PLN | MAPE: %.1f%% | R²: %.3f", mae, mape, r2)
+        log.info("MAE: %s PLN | MAPE: %.1f%% | R²: %.3f", f"{mae:,.0f}", mape, r2)
 
         mlflow.log_params(XGB_PARAMS)
         mlflow.log_metrics({"mae": mae, "mape": mape, "r2": r2})
@@ -133,7 +145,7 @@ def train() -> None:
             "mae": mae,
             "mape": mape,
             "r2": r2,
-            "trained_at": datetime.utcnow().isoformat(),
+            "trained_at": datetime.now(timezone.utc).isoformat(),
         }
         candidate_meta_path = ARTEFACTS_DIR / "candidate_meta.json"
         candidate_meta_path.write_text(
@@ -151,7 +163,7 @@ def _snapshot_data() -> None:
         return
 
     SNAPSHOTS_DIR.mkdir(parents=True, exist_ok=True)
-    label = datetime.utcnow().strftime("%Y-%m")
+    label = datetime.now(timezone.utc).strftime("%Y-%m")
     dest  = SNAPSHOTS_DIR / f"{label}.csv"
 
     if dest.exists():
