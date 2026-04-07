@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import logging
 import random
@@ -16,8 +17,6 @@ from bs4 import BeautifulSoup
 # Config
 # ---------------------------------------------------------------------------
 
-# City-level slugs — one entry per city, always scraped first.
-# Catches listings that Otodom does not tag to a specific district.
 CITY_SLUGS: dict[str, str] = {
     "warszawa":  "Warszawa",
     "krakow":    "Kraków",
@@ -36,9 +35,6 @@ CITY_SLUGS: dict[str, str] = {
     "torun":     "Toruń",
 }
 
-# District-level slugs — scraped in addition to the city-level slug above.
-# Bypasses Otodom's ~25-page pagination limit for large cities.
-# The city-level catch-all is already covered by CITY_SLUGS.
 DISTRICT_SLUGS: dict[str, list[str]] = {
     "Warszawa": [
         "mazowieckie/warszawa/bemowo",
@@ -118,6 +114,10 @@ DELAY_LO   = 2.0
 DELAY_HI   = 4.5
 OUTPUT_DIR = Path(__file__).parent / "data" / "raw"
 
+TEST_CITIES = {"Warszawa", "Białystok", "Katowice"}
+TEST_MAX_PAGES   = 1
+TEST_MAX_SLUGS   = 2
+
 ROOMS_MAP: dict[str, int] = {
     "ONE": 1, "TWO": 2, "THREE": 3, "FOUR": 4,
     "FIVE": 5, "SIX_OR_MORE": 6,
@@ -145,6 +145,26 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 log = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Scrape apartment listings from Otodom.pl."
+    )
+    parser.add_argument(
+        "--test",
+        action="store_true",
+        help=(
+            f"Quick validation run: {len(TEST_CITIES)} cities only, "
+            f"{TEST_MAX_PAGES} page per slug, "
+            f"{TEST_MAX_SLUGS} district slugs per city."
+        ),
+    )
+    return parser.parse_args()
 
 
 # ---------------------------------------------------------------------------
@@ -321,29 +341,45 @@ def scrape_city(
 # ---------------------------------------------------------------------------
 
 def main() -> None:
+    args = _parse_args()
+    max_pages   = TEST_MAX_PAGES if args.test else MAX_PAGES
+    city_filter = TEST_CITIES   if args.test else None
+    max_slugs   = TEST_MAX_SLUGS if args.test else None
+
+    if args.test:
+        log.info(
+            "TEST MODE — cities: %s | pages: %d | max district slugs: %d",
+            sorted(city_filter), max_pages, max_slugs,
+        )
+
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     session = requests.Session()
     session.headers.update(HEADERS)
 
     all_rows: list[dict] = []
 
-    # Phase 1 — city-level slugs for all 15 cities
+    # Phase 1 — city-level slugs
     log.info("Phase 1: city-level scraping (%d cities)", len(CITY_SLUGS))
     for slug, name in CITY_SLUGS.items():
+        if city_filter and name not in city_filter:
+            continue
         log.info("=== [%s] city slug: %s ===", name, slug)
-        listings = scrape_city(session, slug, name)
+        listings = scrape_city(session, slug, name, max_pages=max_pages)
         if not listings:
             log.warning("[%s] no listings — skipping", name)
             continue
         all_rows.extend(asdict(lst) for lst in listings)
         log.info("[%s] +%d rows (running total: %d)", name, len(listings), len(all_rows))
 
-    # Phase 2 — district-level slugs for configured cities
+    # Phase 2 — district-level slugs
     log.info("Phase 2: district-level scraping (%d cities)", len(DISTRICT_SLUGS))
     for city_name, slugs in DISTRICT_SLUGS.items():
-        log.info("=== [%s] %d district slugs ===", city_name, len(slugs))
-        for slug in slugs:
-            listings = scrape_city(session, slug, city_name)
+        if city_filter and city_name not in city_filter:
+            continue
+        active_slugs = slugs[:max_slugs] if max_slugs else slugs
+        log.info("=== [%s] %d district slugs ===", city_name, len(active_slugs))
+        for slug in active_slugs:
+            listings = scrape_city(session, slug, city_name, max_pages=max_pages)
             if not listings:
                 log.warning("[%s] slug=%s — no listings", city_name, slug)
                 continue
@@ -360,7 +396,6 @@ def main() -> None:
     log.info("Deduplicated: %d → %d rows (removed %d duplicates)",
              before, len(combined), before - len(combined))
 
-    # Save per-city CSVs
     name_to_slug = {v: k for k, v in CITY_SLUGS.items()}
     for city_name, city_df in combined.groupby("city"):
         file_slug = name_to_slug.get(city_name, city_name.lower())
@@ -372,7 +407,6 @@ def main() -> None:
     combined.to_csv(combined_path, index=False, encoding="utf-8-sig")
     log.info("Saved combined dataset (%d rows) → %s", len(combined), combined_path)
 
-    # Summary
     counts = combined["city"].value_counts()
     print("\n--- Record count per city ---")
     for city, n in counts.items():
