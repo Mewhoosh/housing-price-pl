@@ -385,13 +385,15 @@ label[data-testid="stWidgetLabel"] p {{
 @st.cache_resource
 def load_artefacts() -> tuple:
     model = joblib.load(ARTEFACTS_DIR / "xgb_model.joblib")
-    le_city = joblib.load(ARTEFACTS_DIR / "le_city.joblib")
-    le_neighborhood = joblib.load(ARTEFACTS_DIR / "le_neighborhood.joblib")
+    with open(ARTEFACTS_DIR / "target_enc_city.json", encoding="utf-8") as f:
+        enc_city: dict[str, float] = json.load(f)
+    with open(ARTEFACTS_DIR / "target_enc_neighborhood.json", encoding="utf-8") as f:
+        enc_neighborhood: dict[str, float] = json.load(f)
     with open(ARTEFACTS_DIR / "city_neighborhoods.json", encoding="utf-8") as f:
         city_neighborhoods: dict[str, list[str]] = json.load(f)
     with open(ARTEFACTS_DIR / "meta.json") as f:
         meta: dict = json.load(f)
-    return model, le_city, le_neighborhood, city_neighborhoods, meta
+    return model, enc_city, enc_neighborhood, city_neighborhoods, meta
 
 
 @st.cache_data
@@ -406,7 +408,7 @@ def load_data() -> pd.DataFrame:
     return df.reset_index(drop=True)
 
 
-model, le_city, le_neighborhood, city_neighborhoods, meta = load_artefacts()
+model, enc_city, enc_neighborhood, city_neighborhoods, meta = load_artefacts()
 df_ref = load_data()
 CITIES_SORTED = sorted(city_neighborhoods.keys())
 city_median = df_ref.groupby("city")["price_per_m2"].median().to_dict()
@@ -419,9 +421,9 @@ IS_PRIVATE_OWNER = False  # assumed majority: agency listing
 
 
 def predict_price(city, neighborhood, area, rooms, floor):
-    city_enc = int(le_city.transform([city])[0])
-    neighborhood_enc = int(le_neighborhood.transform([neighborhood])[0])
-    X = np.array([[area, rooms, floor, city_enc, neighborhood_enc, int(IS_PRIVATE_OWNER)]])
+    city_val        = enc_city.get(city, enc_city["__unknown__"])
+    neighborhood_val = enc_neighborhood.get(neighborhood, enc_neighborhood["__unknown__"])
+    X = np.array([[area, rooms, floor, city_val, neighborhood_val, int(IS_PRIVATE_OWNER)]])
     price = float(np.expm1(model.predict(X)[0]))
     return price, price / area
 
