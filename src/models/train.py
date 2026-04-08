@@ -163,7 +163,7 @@ def _snapshot_data() -> None:
         return
 
     SNAPSHOTS_DIR.mkdir(parents=True, exist_ok=True)
-    label = datetime.now(timezone.utc).strftime("%Y-%m")
+    label = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     dest  = SNAPSHOTS_DIR / f"{label}.csv"
 
     if dest.exists():
