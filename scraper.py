@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import random
 import time
 from dataclasses import asdict, dataclass
@@ -40,7 +41,7 @@ CITY_SLUGS: dict[str, str] = {
 DISTRICTS_CACHE_PATH = Path(__file__).parent / "data" / "districts_cache.json"
 
 BASE_URL   = "https://www.otodom.pl/pl/oferty/sprzedaz/mieszkanie/{city}"
-MAX_PAGES  = 25
+MAX_PAGES  = int(os.getenv("MAX_PAGES", 30))
 DELAY_LO   = 2.0
 DELAY_HI   = 4.5
 OUTPUT_DIR = Path(__file__).parent / "data" / "raw"
