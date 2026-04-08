@@ -60,12 +60,17 @@ def train() -> None:
         datefmt="%H:%M:%S",
     )
 
-    # --- DagsHub MLflow tracking ---
-    dagshub.init(
-        repo_owner="Mewhoosh",
-        repo_name="housing-price-pl",
-        mlflow=True,
-    )
+    # --- MLflow tracking ---
+    # In CI: credentials come from env vars (GitHub secrets)
+    # Locally: dagshub.init() handles OAuth if env vars not set
+    if os.getenv("MLFLOW_TRACKING_URI"):
+        mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])
+    else:
+        dagshub.init(
+            repo_owner="Mewhoosh",
+            repo_name="housing-price-pl",
+            mlflow=True,
+        )
 
     # --- snapshot raw data before training ---
     _snapshot_data()
