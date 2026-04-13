@@ -455,6 +455,20 @@ def main() -> None:
     log.info("Saved combined dataset (%d rows) → %s", len(combined), combined_path)
 
     _save_summary(combined, counts, null_pct)
+    _save_snapshot(combined)
+
+
+def _save_snapshot(combined: "pd.DataFrame") -> None:
+    """Copy the combined dataset to data/snapshots/YYYY-MM_{n}rows.csv."""
+    from datetime import datetime
+
+    snapshots_dir = Path(__file__).parent / "data" / "snapshots"
+    snapshots_dir.mkdir(parents=True, exist_ok=True)
+
+    stamp = datetime.now().strftime("%Y-%m")
+    snapshot_path = snapshots_dir / f"{stamp}_{len(combined)}rows.csv"
+    combined.to_csv(snapshot_path, index=False, encoding="utf-8-sig")
+    log.info("Snapshot saved → %s", snapshot_path)
 
 
 def _save_summary(
