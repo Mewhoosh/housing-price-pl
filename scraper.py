@@ -280,14 +280,18 @@ def discover_districts(
         path = href.split("/mieszkanie/")[1].split("?")[0].rstrip("/")
         parts = path.split("/")
 
-        if len(parts) < 3:
+        # Otodom HTML only has 5-segment district links:
+        #   {voivodeship}/{city}/{city}/{city}/{district}
+        # These don't filter on the backend. Convert to working 3-segment form:
+        #   {voivodeship}/{city}/{district}
+        if len(parts) != 5:
             continue
-        if city_slug not in parts:
+        if parts[1] != city_slug:
             continue
-        if parts[-1] == city_slug:  # city-level path — skip
+        if parts[4] == city_slug:
             continue
 
-        slugs.add(path)
+        slugs.add(f"{parts[0]}/{parts[1]}/{parts[4]}")
 
     discovered = sorted(slugs)
     log.info("[%s] discovered %d district slugs", city_name, len(discovered))
