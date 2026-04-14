@@ -477,11 +477,11 @@ def _save_summary(
     null_pct: "pd.Series",
 ) -> None:
     """Save a human-readable scrape summary to data/raw/scrape_summary.txt."""
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     summary_path = OUTPUT_DIR / "scrape_summary.txt"
     lines: list[str] = [
-        f"Scrape summary — {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}",
+        f"Scrape summary — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}",
         "=" * 50,
         "",
         "Record count per city:",
