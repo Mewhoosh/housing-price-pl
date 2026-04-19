@@ -1,0 +1,34 @@
+Scrape summary — 2026-04-14 05:52 UTC
+==================================================
+
+Record count per city:
+  Warszawa          7717
+  Kraków            4215
+  Łódź              2933
+  Wrocław           2636
+  Poznań            2413
+  Szczecin          1735
+  Gdynia            1438
+  Rzeszów           1321
+  Gdańsk            1151
+  Katowice          1139
+  Bydgoszcz         1076
+  Lublin            1055
+  Białystok          959
+  Częstochowa        879
+  Kielce             726
+  Olsztyn            445
+  Toruń              209
+  TOTAL            32047
+
+Null % per column:
+  city                   0.0%
+  price                  1.1%
+  price_per_m2           1.1%
+  area_m2                0.0%
+  rooms                  0.7%
+  floor                  5.3%
+  neighborhood           1.7%
+  sub_neighborhood      32.6%
+  is_private_owner       0.0%
+  url                    0.0%
