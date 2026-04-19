@@ -216,6 +216,11 @@ def parse_listings(soup: BeautifulSoup, city_name: str) -> list[Listing]:
         if item.get("estate") != "FLAT":
             continue
 
+        # skip international listings promoted on otodom.pl
+        currency = _safe_get(item, "totalPrice", "currency")
+        if currency and currency != "PLN":
+            continue
+
         price        = _to_int(_safe_get(item, "totalPrice", "value"))
         price_per_m2 = _to_float(_safe_get(item, "pricePerSquareMeter", "value"))
         area_m2      = _to_float(item.get("areaInSquareMeters"))
