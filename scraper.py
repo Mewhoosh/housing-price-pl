@@ -402,7 +402,15 @@ def main() -> None:
         log.info("[%s] +%d rows (running total: %d)", city_name, len(listings), len(all_rows))
 
     # Phase 2 — district-level slugs from cache
+    # Early stopping: if after EARLY_STOP_MIN_DISTRICTS districts the new-unique
+    # rate drops below EARLY_STOP_MIN_UNIQUE_RATE, the slug is not filtering and
+    # we skip remaining districts for that city.
+    EARLY_STOP_MIN_DISTRICTS  = 3
+    EARLY_STOP_MIN_UNIQUE_RATE = 0.20  # at least 20% new unique rows per district
+
     log.info("Phase 2: district-level scraping")
+    seen_urls: set[str] = {r["url"] for r in all_rows if r.get("url")}
+
     for city_slug, city_name in CITY_SLUGS.items():
         if city_filter and city_name not in city_filter:
             continue
@@ -412,12 +420,51 @@ def main() -> None:
             continue
         active_slugs = district_slugs[:max_slugs] if max_slugs else district_slugs
         log.info("=== [%s] %d district slugs ===", city_name, len(active_slugs))
+
+        city_rows_before = len(all_rows)
+        districts_scraped = 0
+        low_yield_streak  = 0
+
         for district_slug in active_slugs:
             listings = scrape_city(session, district_slug, city_name, max_pages=max_pages)
             if not listings:
                 log.warning("[%s] slug=%s — no listings", city_name, district_slug)
                 continue
-            all_rows.extend(asdict(lst) for lst in listings)
+
+            raw_rows   = [asdict(lst) for lst in listings]
+            new_rows   = [r for r in raw_rows if r.get("url") not in seen_urls]
+            dup_rows   = len(raw_rows) - len(new_rows)
+            unique_rate = len(new_rows) / len(raw_rows) if raw_rows else 0
+
+            for r in new_rows:
+                if r.get("url"):
+                    seen_urls.add(r["url"])
+            all_rows.extend(new_rows)
+
+            city_total   = len(all_rows) - city_rows_before + len(new_rows)
+            districts_scraped += 1
+
+            log.info(
+                "[%s] slug=%s — raw: %d | new unique: %d (%.0f%%) | dup skipped: %d"
+                " | city total: %d | overall: %d",
+                city_name, district_slug,
+                len(raw_rows), len(new_rows), unique_rate * 100, dup_rows,
+                len(all_rows) - city_rows_before,
+                len(all_rows),
+            )
+
+            if districts_scraped >= EARLY_STOP_MIN_DISTRICTS:
+                if unique_rate < EARLY_STOP_MIN_UNIQUE_RATE:
+                    low_yield_streak += 1
+                else:
+                    low_yield_streak = 0
+
+                if low_yield_streak >= 2:
+                    log.warning(
+                        "[%s] early stop after %d districts — unique rate %.0f%% below threshold",
+                        city_name, districts_scraped, unique_rate * 100,
+                    )
+                    break
 
     if not all_rows:
         log.error("No data scraped.")
