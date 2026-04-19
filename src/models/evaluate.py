@@ -53,8 +53,12 @@ def evaluate() -> None:
     # --- evaluate production (if exists) ---
     if production_path.exists():
         production = joblib.load(production_path)
-        mae_old    = _mae(production, feats.X_test, y_true)
-        log.info("Production MAE on new test set: %s PLN", f"{mae_old:,.0f}")
+        try:
+            mae_old = _mae(production, feats.X_test, y_true)
+            log.info("Production MAE on new test set: %s PLN", f"{mae_old:,.0f}")
+        except ValueError:
+            mae_old = float("inf")
+            log.warning("Feature set mismatch — production model incompatible, auto-promoting candidate")
     else:
         mae_old = float("inf")
         log.info("No production model yet — candidate will be promoted automatically")

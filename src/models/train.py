@@ -28,7 +28,6 @@ log = logging.getLogger(__name__)
 ROOT          = Path(__file__).parents[2]
 ARTEFACTS_DIR = ROOT / "model_artefacts"
 SNAPSHOTS_DIR = ROOT / "data" / "snapshots"
-DATA_PATH     = ROOT / "data" / "raw" / "otodom_all.csv"
 
 # ---------------------------------------------------------------------------
 # XGBoost config
@@ -76,7 +75,7 @@ def train() -> None:
     _snapshot_data()
 
     # --- features ---
-    feats = build_features(DATA_PATH)
+    feats = build_features()
 
     # --- MLflow run ---
     mlflow.set_experiment(EXPERIMENT_NAME)
@@ -135,12 +134,17 @@ def train() -> None:
             encoding="utf-8",
         )
 
-        # meta.json — feature names + input ranges for app.py validation
+        # meta.json — feature names, input ranges, ohe categories for app.py
         meta = {
-            "features":    list(feats.X_train.columns),
-            "rooms_range": [int(feats.X_train["rooms"].min()), int(feats.X_train["rooms"].max())],
-            "floor_range": [int(feats.X_train["floor"].min()), int(feats.X_train["floor"].max())],
-            "area_range":  [float(feats.X_train["area_m2"].min()), float(feats.X_train["area_m2"].max())],
+            "features":       feats.feature_columns,
+            "ohe_categories": feats.ohe_categories,
+            "rooms_range":    [int(feats.X_train["rooms"].min()), int(feats.X_train["rooms"].max())],
+            "floor_range":    [int(feats.X_train["floor"].min()), int(feats.X_train["floor"].max())],
+            "area_range":     [float(feats.X_train["area_m2"].min()), float(feats.X_train["area_m2"].max())],
+            "rok_budowy_range": [
+                int(feats.X_train["rok_budowy"].min()),
+                int(feats.X_train["rok_budowy"].max()),
+            ],
         }
         (ARTEFACTS_DIR / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
@@ -162,9 +166,10 @@ def train() -> None:
 
 
 def _snapshot_data() -> None:
-    """Copy current otodom_all.csv to data/snapshots/YYYY-MM.csv."""
-    if not DATA_PATH.exists():
-        log.warning("No data file found at %s — skipping snapshot", DATA_PATH)
+    """Copy current otodom_all.csv to data/snapshots/YYYY-MM-DD.csv."""
+    data_path = ROOT / "data" / "raw" / "otodom_all.csv"
+    if not data_path.exists():
+        log.warning("No data file found at %s — skipping snapshot", data_path)
         return
 
     SNAPSHOTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -175,7 +180,7 @@ def _snapshot_data() -> None:
         log.info("Snapshot %s already exists — skipping", dest.name)
         return
 
-    shutil.copy2(DATA_PATH, dest)
+    shutil.copy2(data_path, dest)
     log.info("Snapshot saved → %s", dest)
 
 
