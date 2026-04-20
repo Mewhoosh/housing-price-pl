@@ -5,8 +5,87 @@
     "floor",
     "city_enc",
     "neighborhood_enc",
-    "is_private_owner"
+    "is_private_owner",
+    "rok_budowy",
+    "liczba_pieter",
+    "rodzaj_zabudowy_apartment",
+    "rodzaj_zabudowy_block",
+    "rodzaj_zabudowy_house",
+    "rodzaj_zabudowy_infill",
+    "rodzaj_zabudowy_loft",
+    "rodzaj_zabudowy_ribbon",
+    "rodzaj_zabudowy_tenement",
+    "ogrzewanie_boiler_room",
+    "ogrzewanie_electrical",
+    "ogrzewanie_gas",
+    "ogrzewanie_other",
+    "ogrzewanie_tiled_stove",
+    "ogrzewanie_urban",
+    "stan_wykonczenia_ready_to_use",
+    "stan_wykonczenia_to_completion",
+    "stan_wykonczenia_to_renovation",
+    "forma_wlasnosci_full_ownership",
+    "forma_wlasnosci_limited_ownership",
+    "forma_wlasnosci_share",
+    "forma_wlasnosci_usufruct",
+    "rynek_primary",
+    "rynek_secondary",
+    "okna_aluminium",
+    "okna_plastic",
+    "okna_wooden",
+    "winda",
+    "balkon",
+    "taras",
+    "ogrodek",
+    "piwnica",
+    "garaz",
+    "dwupoziomowe",
+    "oddzielna_kuchnia",
+    "klimatyzacja",
+    "teren_zamkniety",
+    "monitoring",
+    "domofon",
+    "okna_antywlamaniowe"
   ],
+  "ohe_categories": {
+    "rodzaj_zabudowy": [
+      "apartment",
+      "block",
+      "house",
+      "infill",
+      "loft",
+      "ribbon",
+      "tenement"
+    ],
+    "ogrzewanie": [
+      "boiler_room",
+      "electrical",
+      "gas",
+      "other",
+      "tiled_stove",
+      "urban"
+    ],
+    "stan_wykonczenia": [
+      "ready_to_use",
+      "to_completion",
+      "to_renovation"
+    ],
+    "forma_wlasnosci": [
+      "full_ownership",
+      "limited_ownership",
+      "share",
+      "usufruct"
+    ],
+    "rynek": [
+      "primary",
+      "secondary"
+    ],
+    "okna": [
+      "aluminium",
+      "plastic",
+      "wooden"
+    ]
+  },
   "rooms_range": [
     1,
     5
@@ -18,5 +97,9 @@
   "area_range": [
     15.0,
     250.0
+  ],
+  "rok_budowy_range": [
+    1,
+    20205
   ]
 }

@@ -1,3 +1,5 @@
+CLAUDE.md
+
 # Python
 venv/
 __pycache__/
@@ -7,6 +9,7 @@ __pycache__/
 
 data/raw/otodom_*.csv
 !data/raw/otodom_all.csv
+!data/raw/otodom_details.csv
 
 # IDE
 .idea/
@@ -17,3 +20,15 @@ data/raw/otodom_*.csv
 
 # Jupyter checkpoints
 .ipynb_checkpoints/
+
+# MLflow local runs
+mlruns/
+
+# Candidate model — promoted to xgb_model.joblib by evaluate.py
+model_artefacts/xgb_model_candidate.joblib
+
+# Reports (generated, not source)
+reports/
+
+# Local utility scripts
+generate_assets.py

@@ -5,6 +5,7 @@ on:
     branches: [feature/mlops, main]
     paths:
       - "data/raw/otodom_all.csv"
+      - "data/raw/otodom_details.csv"
 
 jobs:
   train:

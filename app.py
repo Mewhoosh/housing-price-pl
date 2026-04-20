@@ -10,14 +10,12 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-# ---------------------------------------------------------------------------
-# Config
-# ---------------------------------------------------------------------------
-
-BASE_DIR = Path(__file__).parent
+BASE_DIR      = Path(__file__).parent
 ARTEFACTS_DIR = BASE_DIR / "model_artefacts"
-DATA_PATH = BASE_DIR / "data" / "raw" / "otodom_all.csv"
-SCRAPED_DATE = "March 2026"
+DATA_PATH     = BASE_DIR / "data" / "raw" / "otodom_all.csv"
+SCRAPED_DATE  = "April 2026"
+
+LICZBA_PIETER_DEFAULT = 5  # median floors in building, used when not provided by user
 
 st.set_page_config(
     page_title="Polish Apartment Price Estimator",
@@ -25,22 +23,18 @@ st.set_page_config(
     layout="wide",
 )
 
-# ---------------------------------------------------------------------------
-# Palette
-# ---------------------------------------------------------------------------
-
-C_INK = "#0f1729"
-C_SLATE = "#3a4560"
-C_STEEL = "#6b7a99"
+C_INK    = "#0f1729"
+C_SLATE  = "#3a4560"
+C_STEEL  = "#6b7a99"
 C_SILVER = "#9ba8c2"
-C_MIST = "#e4e9f2"
-C_SNOW = "#f4f6fb"
-C_WHITE = "#ffffff"
+C_MIST   = "#e4e9f2"
+C_SNOW   = "#f4f6fb"
+C_WHITE  = "#ffffff"
 
-C_BLUE = "#1a56db"
+C_BLUE   = "#1a56db"
 C_BLUE_D = "#1045b5"
 C_BLUE_L = "#e8eefb"
-C_TEAL = "#0ea271"
+C_TEAL   = "#0ea271"
 C_TEAL_BG = "rgba(14,162,113,0.08)"
 
 FIG_STYLE = {
@@ -61,10 +55,6 @@ FIG_STYLE = {
     "axes.grid": False,
 }
 
-# ---------------------------------------------------------------------------
-# CSS
-# ---------------------------------------------------------------------------
-
 st.markdown(f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Plus+Jakarta+Sans:wght@700;800&display=swap');
@@ -75,7 +65,6 @@ html, body, [class*="css"] {{
     -moz-osx-font-smoothing: grayscale;
 }}
 
-/* ── PAGE ──────────────────────────────────────────────── */
 .stApp {{ background: {C_SNOW} !important; }}
 #MainMenu, footer, [data-testid="stToolbar"], [data-testid="stDecoration"] {{
     display: none !important;
@@ -87,7 +76,6 @@ html, body, [class*="css"] {{
     margin: 0 auto !important;
 }}
 
-/* ── TABS ──────────────────────────────────────────────── */
 [data-testid="stTabs"] [data-baseweb="tab-list"] {{
     gap: 0 !important;
     background: transparent !important;
@@ -117,7 +105,6 @@ html, body, [class*="css"] {{
 }}
 [data-testid="stTabs"] [data-baseweb="tab-panel"] {{ padding-top: 1.75rem !important; }}
 
-/* ── INPUT LABELS ──────────────────────────────────────── */
 label[data-testid="stWidgetLabel"] p {{
     font-size: 11px !important;
     font-weight: 600 !important;
@@ -127,7 +114,6 @@ label[data-testid="stWidgetLabel"] p {{
     margin-bottom: 0.15rem !important;
 }}
 
-/* ── SELECTBOXES ───────────────────────────────────────── */
 [data-baseweb="select"],
 [data-baseweb="select"] > div,
 [data-baseweb="select"] > div > div {{
@@ -161,7 +147,6 @@ label[data-testid="stWidgetLabel"] p {{
     background-color: {C_BLUE_L} !important;
 }}
 
-/* ── NUMBER INPUTS ─────────────────────────────────────── */
 [data-testid="stNumberInput"],
 [data-testid="stNumberInput"] > div,
 [data-testid="stNumberInput"] > div > div {{ background: transparent !important; }}
@@ -194,7 +179,6 @@ label[data-testid="stWidgetLabel"] p {{
     border-color: {C_SILVER} !important;
 }}
 
-/* ── BUTTON ────────────────────────────────────────────── */
 .stButton {{ padding-top: 1.4rem !important; }}
 .stButton > button[kind="primary"] {{
     background: {C_BLUE} !important;
@@ -221,7 +205,6 @@ label[data-testid="stWidgetLabel"] p {{
 }}
 .stButton > button[kind="primary"]:active {{ transform: translateY(0) !important; }}
 
-/* ── METRIC CARDS ──────────────────────────────────────── */
 [data-testid="metric-container"] {{
     background: {C_WHITE} !important;
     background-color: {C_WHITE} !important;
@@ -246,7 +229,6 @@ label[data-testid="stWidgetLabel"] p {{
 }}
 [data-testid="stMetricDelta"] {{ font-weight: 600 !important; font-size: 12px !important; }}
 
-/* ── DATA TABLES ───────────────────────────────────────── */
 .data-table {{
     width: 100%;
     border-collapse: separate;
@@ -279,7 +261,6 @@ label[data-testid="stWidgetLabel"] p {{
     border: 1px solid {C_MIST};
 }}
 
-/* ── CHART HEADERS ─────────────────────────────────────── */
 .chart-label {{
     font-size: 13px;
     font-weight: 700;
@@ -294,26 +275,22 @@ label[data-testid="stWidgetLabel"] p {{
     font-size: 12px;
 }}
 
-/* ── DIVIDERS ──────────────────────────────────────────── */
 .section-divider {{
     border: none;
     border-top: 1.5px solid {C_MIST};
     margin: 1.25rem 0 1.75rem 0;
 }}
 
-/* ── SCROLLBAR ─────────────────────────────────────────── */
 ::-webkit-scrollbar {{ width: 6px; }}
 ::-webkit-scrollbar-track {{ background: transparent; }}
 ::-webkit-scrollbar-thumb {{ background: {C_SILVER}; border-radius: 3px; }}
 
-/* ── ALERTS ────────────────────────────────────────────── */
 [data-testid="stAlert"] {{
     border-radius: 10px !important;
     border: 1px solid {C_MIST} !important;
     font-size: 13px !important;
 }}
 
-/* ── STATS PANEL ───────────────────────────────────────── */
 .stats-panel {{
     display: flex;
     align-items: center;
@@ -345,7 +322,6 @@ label[data-testid="stWidgetLabel"] p {{
     margin-top: 0.15rem;
 }}
 
-/* ── ABOUT CARDS ───────────────────────────────────────── */
 .about-section {{
     background: {C_WHITE};
     border: 1px solid {C_MIST};
@@ -355,7 +331,25 @@ label[data-testid="stWidgetLabel"] p {{
     box-shadow: 0 1px 4px rgba(15,23,41,0.05);
     font-size: 14px;
     line-height: 1.7;
-    color: {C_SLATE};
+    color: {C_INK};
+}}
+
+@media (max-width: 768px) {{
+    [data-testid="column"] {{
+        width: 100% !important;
+        flex: none !important;
+        min-width: 100% !important;
+    }}
+    .stats-panel {{
+        flex-direction: column;
+        gap: 0.75rem;
+        padding: 1rem 1.25rem;
+    }}
+    .stats-panel .stat + .stat {{
+        border-left: none;
+        border-top: 1px solid {C_MIST};
+        padding-top: 0.75rem;
+    }}
 }}
 .about-section h3 {{
     font-family: 'Plus Jakarta Sans', sans-serif;
@@ -385,13 +379,23 @@ label[data-testid="stWidgetLabel"] p {{
 @st.cache_resource
 def load_artefacts() -> tuple:
     model = joblib.load(ARTEFACTS_DIR / "xgb_model.joblib")
-    le_city = joblib.load(ARTEFACTS_DIR / "le_city.joblib")
-    le_neighborhood = joblib.load(ARTEFACTS_DIR / "le_neighborhood.joblib")
+    with open(ARTEFACTS_DIR / "target_enc_city.json", encoding="utf-8") as f:
+        enc_city: dict[str, float] = json.load(f)
+    with open(ARTEFACTS_DIR / "target_enc_neighborhood.json", encoding="utf-8") as f:
+        enc_neighborhood: dict[str, float] = json.load(f)
     with open(ARTEFACTS_DIR / "city_neighborhoods.json", encoding="utf-8") as f:
         city_neighborhoods: dict[str, list[str]] = json.load(f)
     with open(ARTEFACTS_DIR / "meta.json") as f:
         meta: dict = json.load(f)
-    return model, le_city, le_neighborhood, city_neighborhoods, meta
+    return model, enc_city, enc_neighborhood, city_neighborhoods, meta
+
+
+def _load_model_stats() -> dict:
+    for name in ("production_meta.json", "candidate_meta.json"):
+        path = ARTEFACTS_DIR / name
+        if path.exists():
+            return json.loads(path.read_text(encoding="utf-8"))
+    return {"mae": 97_270, "mape": 7.9, "r2": 0.903}
 
 
 @st.cache_data
@@ -406,43 +410,115 @@ def load_data() -> pd.DataFrame:
     return df.reset_index(drop=True)
 
 
-model, le_city, le_neighborhood, city_neighborhoods, meta = load_artefacts()
-df_ref = load_data()
+model, enc_city, enc_neighborhood, city_neighborhoods, meta = load_artefacts()
+model_stats  = _load_model_stats()
+df_ref       = load_data()
 CITIES_SORTED = sorted(city_neighborhoods.keys())
-city_median = df_ref.groupby("city")["price_per_m2"].median().to_dict()
+city_median   = df_ref.groupby("city")["price_per_m2"].median().to_dict()
+
+ROK_BUDOWY_RANGE = meta.get("rok_budowy_range", [1950, 2025])
+STAN_RAW_OPTIONS = meta.get("ohe_categories", {}).get("stan_wykonczenia", [])
+
+_STAN_LABELS = {
+    "ready_to_use":   "Move-in ready",
+    "to_completion":  "Needs finishing",
+    "shell":          "Shell / raw",
+    "high_standard":  "High standard",
+    "for_renovation": "For renovation",
+}
+
+
+def _stan_label(code: str) -> str:
+    return _STAN_LABELS.get(code, code.replace("_", " ").title())
+
+
+STAN_OPTIONS = ["— not specified —"] + STAN_RAW_OPTIONS
+
 
 # ---------------------------------------------------------------------------
 # Prediction helpers
 # ---------------------------------------------------------------------------
 
-IS_PRIVATE_OWNER = False  # assumed majority: agency listing
+def _build_input_vector(
+    city: str,
+    neighborhood: str,
+    area: float,
+    rooms: int,
+    floor: int,
+    rok_budowy: int,
+    stan_wykonczenia: str,
+    winda: bool,
+) -> pd.DataFrame:
+    city_val = enc_city.get(city, enc_city["__unknown__"])
+    nb_val   = enc_neighborhood.get(neighborhood, enc_neighborhood["__unknown__"])
+
+    features = meta.get("features")
+
+    if not features:
+        # old meta.json without feature list — fall back to 6-feature baseline
+        return pd.DataFrame([{
+            "area_m2": area, "rooms": rooms, "floor": floor,
+            "city_enc": city_val, "neighborhood_enc": nb_val, "is_private_owner": 0,
+        }])
+
+    feat: dict[str, float] = {col: 0 for col in features}
+    feat.update({
+        "area_m2":          area,
+        "rooms":            rooms,
+        "floor":            floor,
+        "city_enc":         city_val,
+        "neighborhood_enc": nb_val,
+        "is_private_owner": 0,
+        "rok_budowy":       rok_budowy,
+        "liczba_pieter":    LICZBA_PIETER_DEFAULT,
+        "winda":            int(winda),
+    })
+    for cat in STAN_RAW_OPTIONS:
+        col = f"stan_wykonczenia_{cat}"
+        if col in feat:
+            feat[col] = 1 if (stan_wykonczenia and cat == stan_wykonczenia) else 0
+
+    return pd.DataFrame([feat])[features]
 
 
-def predict_price(city, neighborhood, area, rooms, floor):
-    city_enc = int(le_city.transform([city])[0])
-    neighborhood_enc = int(le_neighborhood.transform([neighborhood])[0])
-    X = np.array([[area, rooms, floor, city_enc, neighborhood_enc, int(IS_PRIVATE_OWNER)]])
+def predict_price(
+    city: str,
+    neighborhood: str,
+    area: float,
+    rooms: int,
+    floor: int,
+    rok_budowy: int,
+    stan_wykonczenia: str,
+    winda: bool,
+) -> tuple[float, float]:
+    X = _build_input_vector(city, neighborhood, area, rooms, floor, rok_budowy, stan_wykonczenia, winda)
     price = float(np.expm1(model.predict(X)[0]))
     return price, price / area
 
 
-def predict_all_cities(area, rooms, floor):
+def predict_all_cities(
+    area: float, rooms: int, floor: int,
+    rok_budowy: int, stan_wykonczenia: str, winda: bool,
+) -> pd.DataFrame:
     rows = []
     for c in CITIES_SORTED:
         nb = city_neighborhoods[c][0]
         try:
-            price, ppm2 = predict_price(c, nb, area, rooms, floor)
+            price, ppm2 = predict_price(c, nb, area, rooms, floor, rok_budowy, stan_wykonczenia, winda)
             rows.append({"city": c, "price": price, "ppm2": ppm2})
         except Exception:
             pass
     return pd.DataFrame(rows).sort_values("ppm2", ascending=True)
 
 
-def predict_all_neighborhoods(city, area, rooms, floor):
+def predict_all_neighborhoods(
+    city: str, area: float, rooms: int, floor: int,
+    rok_budowy: int, stan_wykonczenia: str, winda: bool,
+) -> pd.DataFrame:
     rows = []
     for nb in city_neighborhoods.get(city, [city]):
         try:
-            price, ppm2 = predict_price(city, nb, area, rooms, floor)
+            price, ppm2 = predict_price(city, nb, area, rooms, floor, rok_budowy, stan_wykonczenia, winda)
             rows.append({"neighborhood": nb, "price": price, "ppm2": ppm2})
         except Exception:
             pass
@@ -454,9 +530,9 @@ def similar_listings(city, neighborhood, area, rooms, price, n=6):
     if pool.empty:
         return pd.DataFrame()
     pool["score"] = (
-            ((pool["area_m2"] - area) / area).abs() * 0.5
-            + ((pool["rooms"] - rooms) / rooms).abs() * 0.3
-            + ((pool["price"] - price) / price).abs() * 0.2
+        ((pool["area_m2"] - area) / area).abs() * 0.5
+        + ((pool["rooms"] - rooms) / rooms).abs() * 0.3
+        + ((pool["price"] - price) / price).abs() * 0.2
     )
     top = (
         pool.sort_values("score").head(n)
@@ -470,101 +546,207 @@ def similar_listings(city, neighborhood, area, rooms, price, n=6):
     return top
 
 
-def closest_listing_url(city: str, area: float, budget: int, rooms_min: int) -> str | None:
-    """Return URL of the real listing closest in area to `area` that fits the budget."""
-    pool = df_ref[
-        (df_ref["city"] == city) &
-        (df_ref["price"] <= budget) &
-        (df_ref["rooms"] >= rooms_min) &
-        df_ref["url"].notna()
-    ].copy()
+def closest_listing_url(
+    city: str, area: float, budget: int, rooms_min: int,
+    neighborhood: str | None = None,
+) -> str | None:
+    base = (
+        (df_ref["city"] == city)
+        & (df_ref["price"] <= budget)
+        & (df_ref["rooms"] >= rooms_min)
+        & df_ref["url"].notna()
+    )
+    pool = df_ref[base & (df_ref["neighborhood"] == neighborhood)].copy() if neighborhood else pd.DataFrame()
+    if pool.empty:
+        pool = df_ref[base].copy()
     if pool.empty:
         return None
     pool["_dist"] = (pool["area_m2"] - area).abs()
     return pool.sort_values("_dist").iloc[0]["url"]
 
 
-def reverse_lookup(budget, rooms, n_results=8):
+def _feat_dict(
+    city: str, nb: str, area: float,
+    rooms: int, floor: int,
+    rok_budowy: int, stan_wykonczenia: str, winda: bool,
+) -> dict:
+    """Build a feature dict for one row (used for batch assembly)."""
+    city_val = enc_city.get(city, enc_city["__unknown__"])
+    nb_val   = enc_neighborhood.get(nb, enc_neighborhood["__unknown__"])
+    features = meta.get("features") or [
+        "area_m2", "rooms", "floor", "city_enc", "neighborhood_enc", "is_private_owner",
+    ]
+    feat: dict = {col: 0 for col in features}
+    feat.update({
+        "area_m2": area, "rooms": rooms, "floor": floor,
+        "city_enc": city_val, "neighborhood_enc": nb_val,
+        "is_private_owner": 0,
+        "rok_budowy": rok_budowy, "liczba_pieter": LICZBA_PIETER_DEFAULT,
+        "winda": int(winda),
+    })
+    for cat in STAN_RAW_OPTIONS:
+        col = f"stan_wykonczenia_{cat}"
+        if col in feat:
+            feat[col] = 1 if (stan_wykonczenia and cat == stan_wykonczenia) else 0
+    return feat
+
+
+def _batch_predict_areas(
+    pairs: list[tuple[str, str]],
+    areas: np.ndarray,
+    rooms: int,
+    rok_budowy: int,
+    stan_wykonczenia: str,
+    winda: bool,
+) -> np.ndarray:
+    features = meta.get("features") or [
+        "area_m2", "rooms", "floor", "city_enc", "neighborhood_enc", "is_private_owner",
+    ]
+    rows = [
+        _feat_dict(c, nb, float(areas[i]), rooms, 2, rok_budowy, stan_wykonczenia, winda)
+        for i, (c, nb) in enumerate(pairs)
+    ]
+    X = pd.DataFrame(rows)[features]
+    return np.expm1(model.predict(X))
+
+
+def reverse_lookup(
+    selected_city: str,
+    selected_nb: str,
+    budget: int,
+    rooms: int,
+    rok_budowy: int,
+    stan_wykonczenia: str,
+    winda: bool,
+    n_results: int = 10,
+) -> pd.DataFrame:
+    # Build the list of city-neighborhood pairs to search
+    if selected_city == "All cities":
+        pairs = [(c, city_neighborhoods[c][0]) for c in CITIES_SORTED]
+    elif selected_nb == "All neighborhoods":
+        pairs = [
+            (selected_city, nb)
+            for nb in city_neighborhoods.get(selected_city, [selected_city])
+        ]
+    else:
+        pairs = [(selected_city, selected_nb)]
+
+    n = len(pairs)
+    lo = np.full(n, 15.0)
+    hi = np.full(n, 200.0)
+
+    for _ in range(14):
+        mid = (lo + hi) / 2
+        prices = _batch_predict_areas(pairs, mid, rooms, rok_budowy, stan_wykonczenia, winda)
+        lo = np.where(prices <= budget, mid, lo)
+        hi = np.where(prices > budget, mid, hi)
+
+    final_areas  = np.round(lo, 1)
+    final_prices = _batch_predict_areas(pairs, final_areas, rooms, rok_budowy, stan_wykonczenia, winda)
+
     rows = []
-    for c in CITIES_SORTED:
-        for nb in city_neighborhoods.get(c, [c]):
-            lo, hi = 15.0, 200.0
-            for _ in range(20):
-                mid = (lo + hi) / 2
-                try:
-                    p, _ = predict_price(c, nb, mid, rooms, 2)
-                    if p <= budget:
-                        lo = mid
-                    else:
-                        hi = mid
-                except Exception:
-                    break
-            area_fit = round(lo, 1)
-            if area_fit < 18:
-                continue
-            try:
-                price_fit, ppm2_fit = predict_price(c, nb, area_fit, rooms, 2)
-                rows.append({
-                    "city": c, "neighborhood": nb, "area_m2": area_fit,
-                    "est_price": int(price_fit), "ppm2": int(ppm2_fit),
-                    "budget_used_pct": round(price_fit / budget * 100, 1),
-                })
-            except Exception:
-                pass
+    for i, (city, nb) in enumerate(pairs):
+        area  = final_areas[i]
+        price = final_prices[i]
+        if area >= 18:
+            rows.append({
+                "city": city, "neighborhood": nb, "area_m2": area,
+                "est_price": int(price), "ppm2": int(price / area),
+                "budget_used_pct": round(price / budget * 100, 1),
+            })
+
     if not rows:
         return pd.DataFrame()
-    return (
-        pd.DataFrame(rows)
-        .sort_values("area_m2", ascending=False)
-        .drop_duplicates(subset=["city"])
-        .head(n_results)
-        .reset_index(drop=True)
-    )
+
+    df = pd.DataFrame(rows).sort_values("area_m2", ascending=False).reset_index(drop=True)
+
+    # for all-cities mode keep best result per city
+    if selected_city == "All cities":
+        df = df.drop_duplicates(subset=["city"]).head(n_results)
+
+    return df
 
 
-def sensitivity_chart(city, neighborhood, area, rooms, floor, base_price):
+def sensitivity_chart(
+    city, neighborhood, area, rooms, floor,
+    rok_budowy, stan_wykonczenia, winda, base_price,
+):
     plt.rcParams.update(FIG_STYLE)
-    specs = [
-        ("area_m2", area * 0.8, area * 1.2),
-        ("rooms", max(1, rooms - 1), min(5, rooms + 1)),
-        ("floor", max(0, floor - 1), min(10, floor + 1)),
-    ]
+
+    rok_lo = max(ROK_BUDOWY_RANGE[0], rok_budowy - 10)
+    rok_hi = min(ROK_BUDOWY_RANGE[1], rok_budowy + 10)
+
+    # each entry: (label, price_low, price_high)
     impacts = []
-    for fname, low_val, high_val in specs:
+
+    candidates = [
+        ("area_m2", f"Area ±20%  ({int(area*0.8)}–{int(area*1.2)} m²)",
+         lambda: (
+             predict_price(city, neighborhood, area * 0.8, rooms, floor, rok_budowy, stan_wykonczenia, winda)[0],
+             predict_price(city, neighborhood, area * 1.2, rooms, floor, rok_budowy, stan_wykonczenia, winda)[0],
+         )),
+        ("rooms", f"Rooms ±1  ({max(1, rooms-1)}–{min(5, rooms+1)})",
+         lambda: (
+             predict_price(city, neighborhood, area, max(1, rooms - 1), floor, rok_budowy, stan_wykonczenia, winda)[0],
+             predict_price(city, neighborhood, area, min(5, rooms + 1), floor, rok_budowy, stan_wykonczenia, winda)[0],
+         )),
+        ("floor", f"Floor ±1  ({max(0, floor-1)}–{min(10, floor+1)})",
+         lambda: (
+             predict_price(city, neighborhood, area, rooms, max(0, floor - 1), rok_budowy, stan_wykonczenia, winda)[0],
+             predict_price(city, neighborhood, area, rooms, min(10, floor + 1), rok_budowy, stan_wykonczenia, winda)[0],
+         )),
+        ("rok_budowy", f"Year built ±10  ({rok_lo}–{rok_hi})",
+         lambda: (
+             predict_price(city, neighborhood, area, rooms, floor, rok_lo, stan_wykonczenia, winda)[0],
+             predict_price(city, neighborhood, area, rooms, floor, rok_hi, stan_wykonczenia, winda)[0],
+         )),
+    ]
+
+    candidates.append((
+        "winda",
+        "Elevator  (No → Yes)",
+        lambda: (
+            predict_price(city, neighborhood, area, rooms, floor, rok_budowy, stan_wykonczenia, False)[0],
+            predict_price(city, neighborhood, area, rooms, floor, rok_budowy, stan_wykonczenia, True)[0],
+        ),
+    ))
+
+    # stan_wykonczenia comparison: worst vs best available category
+    if len(STAN_RAW_OPTIONS) >= 2:
+        candidates.append((
+            "stan_wykonczenia",
+            f"Condition  ({_stan_label(STAN_RAW_OPTIONS[0])} → {_stan_label(STAN_RAW_OPTIONS[-1])})",
+            lambda: (
+                predict_price(city, neighborhood, area, rooms, floor, rok_budowy, STAN_RAW_OPTIONS[0], winda)[0],
+                predict_price(city, neighborhood, area, rooms, floor, rok_budowy, STAN_RAW_OPTIONS[-1], winda)[0],
+            ),
+        ))
+
+    for _key, label, fn in candidates:
         try:
-            if fname == "area_m2":
-                p_lo, _ = predict_price(city, neighborhood, low_val, rooms, floor)
-                p_hi, _ = predict_price(city, neighborhood, high_val, rooms, floor)
-            elif fname == "rooms":
-                p_lo, _ = predict_price(city, neighborhood, area, int(low_val), floor)
-                p_hi, _ = predict_price(city, neighborhood, area, int(high_val), floor)
-            else:
-                p_lo, _ = predict_price(city, neighborhood, area, rooms, int(low_val))
-                p_hi, _ = predict_price(city, neighborhood, area, rooms, int(high_val))
+            p_lo, p_hi = fn()
             impacts.append({
-                "feature": fname,
-                "low": (p_lo - base_price) / 1_000,
+                "label": label,
+                "low":  (p_lo - base_price) / 1_000,
                 "high": (p_hi - base_price) / 1_000,
             })
         except Exception:
             pass
 
-    df_imp = pd.DataFrame(impacts).sort_values(
-        by="high", key=lambda x: x.abs(), ascending=True,
-    )
-    labels = {
-        "area_m2": f"Area ±20 %  ({int(area * 0.8)}–{int(area * 1.2)} m²)",
-        "rooms": f"Rooms ±1  ({max(1, rooms - 1)}–{min(5, rooms + 1)})",
-        "floor": f"Floor ±1  ({max(0, floor - 1)}–{min(10, floor + 1)})",
-    }
-    fig, ax = plt.subplots(figsize=(6, 2.6))
+    if not impacts:
+        return plt.figure()
+
+    df_imp = pd.DataFrame(impacts)
+    df_imp["abs_max"] = df_imp[["low", "high"]].abs().max(axis=1)
+    df_imp = df_imp.sort_values("abs_max", ascending=True)
+
+    fig, ax = plt.subplots(figsize=(6, max(2.6, len(df_imp) * 0.65)))
     for _, row in df_imp.iterrows():
-        lbl = labels[row["feature"]]
-        ax.barh(lbl, row["low"], color=C_BLUE, alpha=0.65, edgecolor="none", height=0.45)
-        ax.barh(lbl, row["high"], color=C_TEAL, alpha=0.85, edgecolor="none", height=0.45)
+        ax.barh(row["label"], row["low"],  color=C_BLUE, alpha=0.65, edgecolor="none", height=0.45)
+        ax.barh(row["label"], row["high"], color=C_TEAL, alpha=0.85, edgecolor="none", height=0.45)
     ax.axvline(0, color=C_STEEL, linewidth=0.7, alpha=0.35)
     ax.set_xlabel("Price change (PLN thousands)", fontsize=8, color=C_STEEL)
-    ax.tick_params(axis="y", labelsize=8.5)
+    ax.tick_params(axis="y", labelsize=8)
     plt.tight_layout()
     return fig
 
@@ -585,6 +767,11 @@ def fmt_ppm2(val) -> str:
 # Page header
 # ---------------------------------------------------------------------------
 
+_r2   = f"{model_stats.get('r2', 0.903):.3f}"
+_mae  = f"{int(model_stats.get('mae', 97_270)):,}"
+_mape = f"{model_stats.get('mape', 7.9):.1f}%"
+_n    = str(len(CITIES_SORTED))
+
 st.markdown(f"""
 <div style="text-align:center; padding:1.25rem 0 0.75rem 0;">
     <div style="
@@ -599,25 +786,25 @@ st.markdown(f"""
     ">
         Select city, neighborhood, and property parameters, then click the
         button to generate a price estimate powered by XGBoost trained on
-        28,310 Otodom.pl listings.
+        Otodom.pl listings and their detail pages.
     </div>
 </div>
 
 <div class="stats-panel">
     <div class="stat">
-        <div class="stat-value">0.790</div>
+        <div class="stat-value">{_r2}</div>
         <div class="stat-label">R²</div>
     </div>
     <div class="stat">
-        <div class="stat-value">136,197</div>
+        <div class="stat-value">{_mae}</div>
         <div class="stat-label">MAE (PLN)</div>
     </div>
     <div class="stat">
-        <div class="stat-value">15.7%</div>
-        <div class="stat-label">MAPE</div>
+        <div class="stat-value">{_mape}</div>
+        <div class="stat-label">Median MAPE</div>
     </div>
     <div class="stat">
-        <div class="stat-value">15</div>
+        <div class="stat-value">{_n}</div>
         <div class="stat-label">Cities</div>
     </div>
 </div>
@@ -636,17 +823,29 @@ tab_est, tab_rev, tab_data = st.tabs(["Estimate Price", "Reverse Lookup", "About
 # ===========================================================================
 
 with tab_est:
-    # ---- Parameter bar — no toggle, 6 columns ------------------------------
     c1, c2, c3, c4, c5, c6 = st.columns([2, 2, 1.4, 1, 1, 1.4])
 
-    city: str = c1.selectbox("City", CITIES_SORTED, key="est_city")
-    neighborhood: str = c2.selectbox(
-        "Neighborhood", city_neighborhoods.get(city, [city]), key="est_nb",
+    city: str        = c1.selectbox("City", CITIES_SORTED, key="est_city")
+    neighborhood: str = c2.selectbox("Neighborhood", city_neighborhoods.get(city, [city]), key="est_nb")
+    area: float      = c3.number_input("Area (m²)", min_value=15, max_value=200, value=55, step=1, key="est_area")
+    rooms: int       = c4.selectbox("Rooms", [1, 2, 3, 4, 5], index=1, key="est_rooms")
+    floor: int       = c5.number_input("Floor", min_value=0, max_value=10, value=2, step=1, key="est_floor")
+    run_est          = c6.button("Estimate Price", type="primary", width="stretch", key="btn_est")
+
+    d1, d2, d3 = st.columns([1, 2, 0.8])
+    rok_budowy: int = d1.number_input(
+        "Year built",
+        min_value=ROK_BUDOWY_RANGE[0], max_value=ROK_BUDOWY_RANGE[1],
+        value=2000, step=1, key="est_rok",
     )
-    area: float = c3.number_input("Area (m²)", min_value=15, max_value=200, value=55, step=1, key="est_area")
-    rooms: int = c4.selectbox("Rooms", [1, 2, 3, 4, 5], index=1, key="est_rooms")
-    floor: int = c5.number_input("Floor", min_value=0, max_value=10, value=2, step=1, key="est_floor")
-    run_est = c6.button("Estimate Price", type="primary", width='stretch', key="btn_est")
+    stan_raw: str = d2.selectbox(
+        "Condition",
+        STAN_OPTIONS,
+        format_func=lambda x: _stan_label(x) if x != "— not specified —" else x,
+        key="est_stan",
+    )
+    stan_wykonczenia: str = stan_raw if stan_raw != "— not specified —" else ""
+    winda: bool = d3.selectbox("Elevator", ["No", "Yes"], key="est_winda") == "Yes"
 
     st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
 
@@ -660,21 +859,25 @@ with tab_est:
 
     else:
         with st.spinner("Calculating estimate…"):
-            price, ppm2 = predict_price(city, neighborhood, area, rooms, floor)
+            price, ppm2 = predict_price(city, neighborhood, area, rooms, floor, rok_budowy, stan_wykonczenia, winda)
             median_city = city_median.get(city, ppm2)
-            delta_pct = (ppm2 - median_city) / median_city * 100
+            delta_pct   = (ppm2 - median_city) / median_city * 100
 
-        # ---- KPI metrics ---------------------------------------------------
+        if price < 300_000:
+            st.warning(
+                "Estimate below 300,000 PLN — the model has limited training data in this "
+                "price range. Treat as indicative only."
+            )
+
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Estimated Price", f"{fmt_price(price)} PLN")
-        m2.metric("Price per m²", f"{fmt_ppm2(ppm2)} PLN/m²")
-        m3.metric("City Median", f"{fmt_ppm2(median_city)} PLN/m²")
-        m4.metric("vs City Median", f"{delta_pct:+.1f} %",
+        m1.metric("Estimated Price",  f"{fmt_price(price)} PLN")
+        m2.metric("Price per m²",     f"{fmt_ppm2(ppm2)} PLN/m²")
+        m3.metric("City Median",      f"{fmt_ppm2(median_city)} PLN/m²")
+        m4.metric("vs City Median",   f"{delta_pct:+.1f} %",
                   delta=f"{delta_pct:+.1f} %", delta_color="inverse")
 
         st.markdown("<div style='height:1.75rem;'></div>", unsafe_allow_html=True)
 
-        # ── ROW 1: Distribution + Cross-city ────────────────────────────────
         col_l, col_r = st.columns(2)
 
         with col_l:
@@ -683,17 +886,15 @@ with tab_est:
                 f'<span>— {neighborhood} vs {city}</span></div>',
                 unsafe_allow_html=True,
             )
-            nb_data = df_ref[(df_ref["city"] == city) & (df_ref["neighborhood"] == neighborhood)]["price_per_m2"]
+            nb_data   = df_ref[(df_ref["city"] == city) & (df_ref["neighborhood"] == neighborhood)]["price_per_m2"]
             city_data = df_ref[df_ref["city"] == city]["price_per_m2"]
-            has_nb = len(nb_data) >= 10
+            has_nb    = len(nb_data) >= 10
 
             plt.rcParams.update(FIG_STYLE)
             fig, ax = plt.subplots(figsize=(6, 3.4))
-            ax.hist(city_data, bins=35, color=C_BLUE, alpha=0.12, edgecolor="none",
-                    label=f"{city} (all)")
+            ax.hist(city_data, bins=35, color=C_BLUE, alpha=0.12, edgecolor="none", label=f"{city} (all)")
             if has_nb:
-                ax.hist(nb_data, bins=20, color=C_BLUE, alpha=0.55, edgecolor="none",
-                        label=neighborhood)
+                ax.hist(nb_data, bins=20, color=C_BLUE, alpha=0.55, edgecolor="none", label=neighborhood)
             ax.axvline(ppm2, color=C_TEAL, linewidth=2.5, label=f"Estimate  {fmt_ppm2(ppm2)}")
             ax.axvline(city_data.median(), color=C_STEEL, linewidth=1.2, linestyle="--",
                        label=f"Median  {fmt_ppm2(city_data.median())}")
@@ -702,7 +903,7 @@ with tab_est:
             ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{int(x / 1000)}k"))
             ax.legend(frameon=False, fontsize=7.5, loc="upper right")
             plt.tight_layout()
-            st.pyplot(fig, width='stretch')
+            st.pyplot(fig, width="stretch")
             plt.close()
 
         with col_r:
@@ -711,9 +912,9 @@ with tab_est:
                 '<span>— same spec, PLN/m²</span></div>',
                 unsafe_allow_html=True,
             )
-            cp_df = predict_all_cities(area, rooms, floor)
+            cp_df  = predict_all_cities(area, rooms, floor, rok_budowy, stan_wykonczenia, winda)
             colors = [C_TEAL if c == city else C_BLUE for c in cp_df["city"]]
-            alphas = [1.0 if c == city else 0.50 for c in cp_df["city"]]
+            alphas = [1.0  if c == city else 0.50   for c in cp_df["city"]]
 
             plt.rcParams.update(FIG_STYLE)
             fig2, ax2 = plt.subplots(figsize=(6, 4))
@@ -722,18 +923,16 @@ with tab_est:
                 bar.set_facecolor(col)
                 bar.set_alpha(alpha)
             for i, (_, row) in enumerate(cp_df.iterrows()):
-                ax2.text(row["ppm2"] + 60, i, fmt_ppm2(row["ppm2"]),
-                         va="center", fontsize=7, color=C_SLATE)
+                ax2.text(row["ppm2"] + 60, i, fmt_ppm2(row["ppm2"]), va="center", fontsize=7, color=C_SLATE)
             ax2.set_xlabel("Predicted PLN / m²", fontsize=8)
             ax2.xaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{int(x / 1000)}k"))
             ax2.set_xlim(0, cp_df["ppm2"].max() * 1.22)
             plt.tight_layout()
-            st.pyplot(fig2, width='stretch')
+            st.pyplot(fig2, width="stretch")
             plt.close()
 
         st.markdown("<div style='height:1.75rem;'></div>", unsafe_allow_html=True)
 
-        # ── ROW 2: Comparable listings ───────────────────────────────────────
         st.markdown(
             f'<div class="chart-label">Comparable listings '
             f'<span>— real Otodom.pl data ({SCRAPED_DATE}) · links may expire after sale</span></div>',
@@ -775,7 +974,6 @@ with tab_est:
 
         st.markdown("<div style='height:1.75rem;'></div>", unsafe_allow_html=True)
 
-        # ── ROW 3: Neighborhood ranking + Sensitivity ────────────────────────
         col_l2, col_r2 = st.columns(2)
 
         with col_l2:
@@ -784,9 +982,9 @@ with tab_est:
                 f'<span>— {city}, PLN/m²</span></div>',
                 unsafe_allow_html=True,
             )
-            nb_df = predict_all_neighborhoods(city, area, rooms, floor)
+            nb_df     = predict_all_neighborhoods(city, area, rooms, floor, rok_budowy, stan_wykonczenia, winda)
             colors_nb = [C_TEAL if n == neighborhood else C_BLUE for n in nb_df["neighborhood"]]
-            alphas_nb = [1.0 if n == neighborhood else 0.50 for n in nb_df["neighborhood"]]
+            alphas_nb = [1.0  if n == neighborhood else 0.50   for n in nb_df["neighborhood"]]
 
             plt.rcParams.update(FIG_STYLE)
             fig3, ax3 = plt.subplots(figsize=(6, max(3.5, len(nb_df) * 0.38)))
@@ -798,7 +996,7 @@ with tab_est:
             ax3.xaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{int(x / 1000)}k"))
             ax3.set_xlim(0, nb_df["ppm2"].max() * 1.18)
             plt.tight_layout()
-            st.pyplot(fig3, width='stretch')
+            st.pyplot(fig3, width="stretch")
             plt.close()
 
         with col_r2:
@@ -807,45 +1005,89 @@ with tab_est:
                 '<span>— impact of changing each parameter</span></div>',
                 unsafe_allow_html=True,
             )
-            fig4 = sensitivity_chart(city, neighborhood, area, rooms, floor, price)
-            st.pyplot(fig4, width='stretch')
+            fig4 = sensitivity_chart(
+                city, neighborhood, area, rooms, floor,
+                rok_budowy, stan_wykonczenia, winda, price,
+            )
+            st.pyplot(fig4, width="stretch")
             plt.close()
+
 
 # ===========================================================================
 # TAB 2 — REVERSE LOOKUP
 # ===========================================================================
 
 with tab_rev:
-    # ---- Parameter bar — no toggle, 3 columns ------------------------------
-    r1, r2, r3 = st.columns([3, 1, 1.5])
+    r1, r2, r3, r4 = st.columns([2, 2, 1, 1.4])
 
-    budget: int = r1.number_input(
+    city_options_rl = ["All cities"] + CITIES_SORTED
+    selected_city_rl: str = r1.selectbox("City", city_options_rl, key="rl_city")
+
+    nb_options_rl = (
+        ["All neighborhoods"] + city_neighborhoods.get(selected_city_rl, [])
+        if selected_city_rl != "All cities" else ["All neighborhoods"]
+    )
+    selected_nb_rl: str = r2.selectbox(
+        "Neighborhood",
+        nb_options_rl,
+        disabled=(selected_city_rl == "All cities"),
+        key="rl_nb",
+    )
+
+    budget: int   = r3.number_input(
         "Budget (PLN)", min_value=100_000, max_value=3_000_000,
         value=600_000, step=10_000, key="rl_budget",
     )
-    rooms_rl: int = r2.selectbox("Rooms (min)", [1, 2, 3, 4, 5], index=1, key="rl_rooms")
-    run_rev = r3.button("Find Apartments", type="primary", width='stretch', key="btn_rev")
+    rooms_rl: int = r4.selectbox("Rooms (min)", [1, 2, 3, 4, 5], index=1, key="rl_rooms")
+
+    d1, d2, d3, d4 = st.columns([1, 2, 0.8, 1.5])
+    rok_budowy_rl: int = d1.number_input(
+        "Year built",
+        min_value=ROK_BUDOWY_RANGE[0], max_value=ROK_BUDOWY_RANGE[1],
+        value=2000, step=1, key="rl_rok",
+    )
+    stan_raw_rl: str = d2.selectbox(
+        "Condition",
+        STAN_OPTIONS,
+        format_func=lambda x: _stan_label(x) if x != "— not specified —" else x,
+        key="rl_stan",
+    )
+    stan_wykonczenia_rl: str = stan_raw_rl if stan_raw_rl != "— not specified —" else ""
+    winda_rl: bool = d3.selectbox("Elevator", ["No", "Yes"], key="rl_winda") == "Yes"
+    run_rev        = d4.button("Find Apartments", type="primary", width="stretch", key="btn_rev")
 
     st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
 
     if not run_rev:
         st.markdown(f"""
         <div style="text-align:center;padding:3.5rem 0;color:{C_STEEL};font-size:14px;line-height:1.6;">
-            Set your budget and click <strong style="color:{C_BLUE};">Find Apartments</strong>
-            to see the largest flat you can buy in each city.
+            Set your budget and click <strong style="color:{C_BLUE};">Find Apartments</strong>.
         </div>
         """, unsafe_allow_html=True)
 
     else:
-        with st.spinner("Searching across all cities…"):
-            results = reverse_lookup(budget, rooms_rl)
+        spinner_msg = (
+            "Searching across all cities…"
+            if selected_city_rl == "All cities"
+            else f"Searching neighborhoods in {selected_city_rl}…"
+            if selected_nb_rl == "All neighborhoods"
+            else "Calculating…"
+        )
+        try:
+            with st.spinner(spinner_msg):
+                results = reverse_lookup(
+                    selected_city_rl, selected_nb_rl,
+                    budget, rooms_rl, rok_budowy_rl, stan_wykonczenia_rl, winda_rl,
+                )
+        except Exception as exc:
+            st.error(f"Search failed: {exc}")
+            results = pd.DataFrame()
 
         if results.empty:
             st.warning("No results found. Try increasing the budget or reducing room count.")
         else:
-            best = results.sort_values("area_m2", ascending=False).iloc[0]
+            best = results.iloc[0]
 
-            # ---- Best deal card --------------------------------------------
             st.markdown(f"""
             <div style="
                 background: linear-gradient(135deg, {C_BLUE} 0%, {C_BLUE_D} 100%);
@@ -872,50 +1114,20 @@ with tab_rev:
             </div>
             """, unsafe_allow_html=True)
 
-            # ---- Bar chart -------------------------------------------------
-            st.markdown(
-                f'<div class="chart-label">Market purchasing power '
-                f'<span>— max area (m²) for {fmt_price(budget)} PLN, {rooms_rl} rooms</span></div>',
-                unsafe_allow_html=True,
-            )
-
-            plt.rcParams.update(FIG_STYLE)
-            fig, ax = plt.subplots(figsize=(9, 4))
-            colors = [C_TEAL if c == best["city"] else C_BLUE for c in results["city"]]
-            alphas = [1.0 if c == best["city"] else 0.50 for c in results["city"]]
-            bars = ax.barh(results["city"], results["area_m2"], edgecolor="none", height=0.55)
-            for bar, col, alpha in zip(bars, colors, alphas):
-                bar.set_facecolor(col)
-                bar.set_alpha(alpha)
-            for i, (_, row) in enumerate(results.iterrows()):
-                ax.text(
-                    row["area_m2"] + 0.4, i,
-                    f"{row['area_m2']} m²  ·  {row['neighborhood']}  ·  {fmt_price(row['est_price'])} PLN",
-                    va="center", fontsize=7.5, color=C_SLATE,
-                )
-            ax.set_xlabel("Max area you can buy (m²)", fontsize=8)
-            ax.set_xlim(0, results["area_m2"].max() * 1.6)
-            plt.tight_layout()
-            st.pyplot(fig, width='stretch')
-            plt.close()
-
-            st.markdown("<div style='height:1.75rem;'></div>", unsafe_allow_html=True)
-
-            # ---- Results table ---------------------------------------------
+            # table first
             st.markdown(
                 f'<div class="chart-label">Results '
-                f'<span>— {len(results)} cities sorted by maximum area</span></div>',
+                f'<span>— {len(results)} results sorted by maximum area</span></div>',
                 unsafe_allow_html=True,
             )
 
             rows_html = ""
             for _, row in results.iterrows():
                 pct = row["budget_used_pct"]
-                url = closest_listing_url(row["city"], row["area_m2"], budget, rooms_rl)
+                url = closest_listing_url(row["city"], row["area_m2"], budget, rooms_rl, row["neighborhood"])
                 link_cell = (
                     f'<a href="{url}" target="_blank" rel="noopener noreferrer" '
-                    f'style="color:{C_BLUE};font-weight:600;text-decoration:none;'
-                    f'font-size:12px;">View →</a>'
+                    f'style="color:{C_BLUE};font-weight:600;text-decoration:none;font-size:12px;">View →</a>'
                     if url else
                     f'<span style="color:{C_SILVER};font-size:11px;">—</span>'
                 )
@@ -948,15 +1160,55 @@ with tab_rev:
               </table>
             </div>""", unsafe_allow_html=True)
 
+            st.markdown("<div style='height:1.75rem;'></div>", unsafe_allow_html=True)
+
+            # chart below
+            label_y = "neighborhood" if selected_city_rl != "All cities" else "city"
+            chart_subtitle = (
+                "all cities · one representative neighborhood each"
+                if selected_city_rl == "All cities"
+                else f"{selected_city_rl} · all neighborhoods"
+                if selected_nb_rl == "All neighborhoods"
+                else f"{selected_city_rl} · {selected_nb_rl}"
+            )
+            st.markdown(
+                f'<div class="chart-label">Purchasing power '
+                f'<span>— max area (m²) for {fmt_price(budget)} PLN · {chart_subtitle}</span></div>',
+                unsafe_allow_html=True,
+            )
+
+            plt.rcParams.update(FIG_STYLE)
+            fig, ax = plt.subplots(figsize=(9, max(3.5, len(results) * 0.42)))
+            y_vals  = results[label_y]
+            colors  = [C_TEAL if i == 0 else C_BLUE for i in range(len(results))]
+            alphas  = [1.0    if i == 0 else 0.55   for i in range(len(results))]
+            bars    = ax.barh(y_vals, results["area_m2"], edgecolor="none", height=0.55)
+            for bar, col, alpha in zip(bars, colors, alphas):
+                bar.set_facecolor(col)
+                bar.set_alpha(alpha)
+            for i, (_, row) in enumerate(results.iterrows()):
+                label_txt = (
+                    f"{row['area_m2']} m²  ·  {row['neighborhood']}  ·  {fmt_price(row['est_price'])} PLN"
+                    if selected_city_rl == "All cities"
+                    else f"{row['area_m2']} m²  ·  {fmt_price(row['est_price'])} PLN"
+                )
+                ax.text(row["area_m2"] + 0.4, i, label_txt, va="center", fontsize=7.5, color=C_SLATE)
+            ax.set_xlabel("Max area you can buy (m²)", fontsize=8)
+            ax.set_xlim(0, results["area_m2"].max() * 1.65)
+            plt.tight_layout()
+            st.pyplot(fig, width="stretch")
+            plt.close()
+
+
 # ===========================================================================
 # TAB 3 — ABOUT THE PROJECT
 # ===========================================================================
 
 with tab_data:
-    n_listings = len(df_ref)
-    n_cities = df_ref["city"].nunique()
+    n_listings     = len(df_ref)
+    n_cities       = df_ref["city"].nunique()
     n_neighborhoods = df_ref["neighborhood"].nunique()
-    median_ppm2 = int(df_ref["price_per_m2"].median())
+    median_ppm2    = int(df_ref["price_per_m2"].median())
 
     st.markdown(f"""
     <div class="about-section">
@@ -973,54 +1225,57 @@ with tab_data:
             Neighborhood data comes from <code>location.reverseGeocoding.locations</code>
             filtered by <code>locationLevel == "district"</code>, giving proper district
             names (Mokotów, Wola, Żoliborz) rather than the city-level fallback that
-            the simpler address field returns for ~95% of listings. Adding this feature
-            reduced Warsaw MAE from 298,730 PLN to 177,551 PLN.
+            the simpler address field returns for ~95% of listings.
+        </p>
+        <p>
+            After collecting list-view data, a second scraping pass fetched individual
+            listing pages for all ~36k listings to extract detail features: year built,
+            building type, heating type, finish condition, and amenity flags (elevator,
+            balcony, garage, etc.).
         </p>
     </div>
     """, unsafe_allow_html=True)
 
-    # ---- Summary metrics ---------------------------------------------------
     d1, d2, d3, d4 = st.columns(4)
-    d1.metric("Listings", f"{n_listings:,}")
-    d2.metric("Cities", str(n_cities))
-    d3.metric("Neighborhoods", str(n_neighborhoods))
-    d4.metric("Median PLN/m²", f"{median_ppm2:,}")
+    d1.metric("Listings",       f"{n_listings:,}")
+    d2.metric("Cities",         str(n_cities))
+    d3.metric("Neighborhoods",  str(n_neighborhoods))
+    d4.metric("Median PLN/m²",  f"{median_ppm2:,}")
 
     st.markdown("<div style='height:1rem;'></div>", unsafe_allow_html=True)
 
-    # ---- Model details card ------------------------------------------------
     st.markdown(f"""
     <div class="about-section">
         <h3>Model</h3>
         <p>
             <strong>XGBoost regressor</strong> trained on log-transformed prices
             (<code>log1p</code> → <code>expm1</code> at inference). 80/20 train-test split.
+            City and neighborhood are encoded using <strong>target encoding</strong>
+            (mean log-price per location, fit on the training set only to prevent leakage).
         </p>
         <ul>
-            <li><code>area_m2</code> — apartment area in square metres</li>
-            <li><code>rooms</code> — number of rooms (Polish convention: bedrooms + living room)</li>
-            <li><code>floor</code> — floor number (0 = ground)</li>
-            <li><code>city_enc</code> — label-encoded city</li>
-            <li><code>neighborhood_enc</code> — label-encoded district-level neighborhood</li>
-            <li><code>is_private_owner</code> — 1 if private seller, 0 if agency</li>
+            <li><code>area_m2</code>, <code>rooms</code>, <code>floor</code> — core property dimensions</li>
+            <li><code>city_enc</code>, <code>neighborhood_enc</code> — target-encoded location</li>
+            <li><code>rok_budowy</code> — year built (#3 in SHAP importance)</li>
+            <li><code>stan_wykonczenia</code> — finish condition, one-hot encoded</li>
+            <li><code>winda</code>, <code>balkon</code>, <code>garaz</code> and 10 other boolean amenity flags</li>
+            <li><code>rodzaj_zabudowy</code>, <code>ogrzewanie</code>, <code>rynek</code>
+                and 3 other categoricals — one-hot encoded</li>
         </ul>
         <p>
-            Test set performance: <strong>R² = 0.790</strong> ·
-            <strong>MAE = 136,197 PLN</strong> · <strong>MAPE = 15.7%</strong>
+            Test set performance: <strong>R² = {_r2}</strong> ·
+            <strong>MAE = {_mae} PLN</strong> · <strong>Median MAPE = {_mape}</strong>
         </p>
-        <h3>Known limitations</h3>
+        <h3>Limitations</h3>
         <p>
-            The current model uses only list-view data. Otodom exposes richer features —
-            apartment condition (<em>move-in ready / needs renovation / shell</em>),
-            year built, and building type — exclusively on individual listing pages.
-            Fetching those for all 28k listings would require a separate enrichment pass
-            (~28,000 additional requests) but is architecturally straightforward since
-            every record already stores its source URL. Estimated improvement: <strong>+0.05–0.08 R²</strong>.
+            Prices are <em>asking prices</em> from Otodom.pl listings, not closed
+            transaction prices. The model performs best in the 300,000–800,000 PLN
+            range (MAPE ~9–10%) and is less reliable below 300,000 PLN due to limited
+            training examples in that segment.
         </p>
     </div>
     """, unsafe_allow_html=True)
 
-    # ---- Charts side by side -----------------------------------------------
     chart_l, chart_r = st.columns(2)
 
     with chart_l:
@@ -1028,41 +1283,36 @@ with tab_data:
         city_counts = df_ref["city"].value_counts().sort_values(ascending=True)
         plt.rcParams.update(FIG_STYLE)
         fig_dc, ax_dc = plt.subplots(figsize=(6, 4))
-        ax_dc.barh(city_counts.index, city_counts.values,
-                   edgecolor="none", height=0.55, color=C_BLUE, alpha=0.55)
+        ax_dc.barh(city_counts.index, city_counts.values, edgecolor="none", height=0.55, color=C_BLUE, alpha=0.55)
         for i, (cname, cnt) in enumerate(city_counts.items()):
             ax_dc.text(cnt + 8, i, str(cnt), va="center", fontsize=8, color=C_SLATE)
         ax_dc.set_xlabel("Number of listings", fontsize=8)
         ax_dc.set_xlim(0, city_counts.max() * 1.15)
         plt.tight_layout()
-        st.pyplot(fig_dc, width='stretch')
+        st.pyplot(fig_dc, width="stretch")
         plt.close()
 
     with chart_r:
-        st.markdown('<div class="chart-label">Median price per m² by city</div>',
-                    unsafe_allow_html=True)
+        st.markdown('<div class="chart-label">Median price per m² by city</div>', unsafe_allow_html=True)
         med_series = df_ref.groupby("city")["price_per_m2"].median().sort_values(ascending=True)
         plt.rcParams.update(FIG_STYLE)
         fig_mp, ax_mp = plt.subplots(figsize=(6, 4))
-        ax_mp.barh(med_series.index, med_series.values,
-                   edgecolor="none", height=0.55, color=C_TEAL, alpha=0.70)
+        ax_mp.barh(med_series.index, med_series.values, edgecolor="none", height=0.55, color=C_TEAL, alpha=0.70)
         for i, (cname, val) in enumerate(med_series.items()):
             ax_mp.text(val + 60, i, fmt_ppm2(val), va="center", fontsize=8, color=C_SLATE)
         ax_mp.set_xlabel("Median PLN / m²", fontsize=8)
         ax_mp.xaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{int(x / 1000)}k"))
         ax_mp.set_xlim(0, med_series.max() * 1.18)
         plt.tight_layout()
-        st.pyplot(fig_mp, width='stretch')
+        st.pyplot(fig_mp, width="stretch")
         plt.close()
 
     st.markdown("<div style='height:1rem;'></div>", unsafe_allow_html=True)
 
-    # ---- Price distribution + rooms distribution ---------------------------
     chart_l2, chart_r2 = st.columns(2)
 
     with chart_l2:
-        st.markdown('<div class="chart-label">Price per m² distribution — all cities</div>',
-                    unsafe_allow_html=True)
+        st.markdown('<div class="chart-label">Price per m² distribution — all cities</div>', unsafe_allow_html=True)
         plt.rcParams.update(FIG_STYLE)
         fig_pd, ax_pd = plt.subplots(figsize=(6, 3.2))
         ax_pd.hist(df_ref["price_per_m2"], bins=50, color=C_BLUE, alpha=0.55, edgecolor="none")
@@ -1073,12 +1323,11 @@ with tab_data:
         ax_pd.xaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{int(x / 1000)}k"))
         ax_pd.legend(frameon=False, fontsize=8)
         plt.tight_layout()
-        st.pyplot(fig_pd, width='stretch')
+        st.pyplot(fig_pd, width="stretch")
         plt.close()
 
     with chart_r2:
-        st.markdown('<div class="chart-label">Room count distribution</div>',
-                    unsafe_allow_html=True)
+        st.markdown('<div class="chart-label">Room count distribution</div>', unsafe_allow_html=True)
         rooms_counts = df_ref["rooms"].dropna().astype(int).value_counts().sort_index()
         plt.rcParams.update(FIG_STYLE)
         fig_rc, ax_rc = plt.subplots(figsize=(6, 3.2))
@@ -1091,13 +1340,11 @@ with tab_data:
         ax_rc.set_ylabel("Listings", fontsize=8)
         ax_rc.set_ylim(0, rooms_counts.max() * 1.15)
         plt.tight_layout()
-        st.pyplot(fig_rc, width='stretch')
+        st.pyplot(fig_rc, width="stretch")
         plt.close()
 
-    # ---- City stats table --------------------------------------------------
     st.markdown("<div style='height:1rem;'></div>", unsafe_allow_html=True)
-    st.markdown('<div class="chart-label">Summary statistics by city</div>',
-                unsafe_allow_html=True)
+    st.markdown('<div class="chart-label">Summary statistics by city</div>', unsafe_allow_html=True)
 
     city_stats = (
         df_ref.groupby("city")
@@ -1133,6 +1380,7 @@ with tab_data:
       </table>
     </div>""", unsafe_allow_html=True)
 
+
 # ---------------------------------------------------------------------------
 # Footer
 # ---------------------------------------------------------------------------
@@ -1143,8 +1391,8 @@ st.markdown(f"""
             display:flex;justify-content:space-between;flex-wrap:wrap;
             gap:0.5rem;align-items:center;">
     <div style="font-size:11.5px;color:{C_SILVER};">
-        Data: Otodom.pl ({SCRAPED_DATE}) · XGBoost · 15 cities ·
-        R²=0.790 · MAE=136,197 PLN · MAPE=15.7%
+        Data: Otodom.pl ({SCRAPED_DATE}) · XGBoost · {_n} cities ·
+        R²={_r2} · MAE={_mae} PLN · Median MAPE={_mape}
     </div>
     <div style="font-size:11.5px;color:{C_SILVER};">Built with Streamlit</div>
 </div>
