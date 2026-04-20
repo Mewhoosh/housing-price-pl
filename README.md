@@ -1,230 +1,225 @@
 # Polish Apartment Price Estimator
 
-XGBoost regression model that predicts apartment prices across 15 Polish cities, trained on 28,310 listings scraped from Otodom.pl. Includes a full scraping pipeline, exploratory analysis, SHAP feature importance, and an interactive Streamlit app for price estimation and reverse lookup.
+XGBoost regression model predicting apartment sale prices across 17 Polish cities. Trained on 36,318 listings scraped from Otodom.pl — including a second scraping pass to collect detail-page features (year built, finish condition, amenities). Includes a full MLOps pipeline with automated retraining on data push and an interactive Streamlit app.
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://housing-price-pl.streamlit.app/) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1nXcHTvFfS6U8HSlu_Sb0YZniJptyCxnr?usp=sharing)
-
-
-
-
----
-
-## Dataset
-
-**Source:** [Otodom.pl](https://www.otodom.pl) — the dominant Polish real estate listings platform
-**Scraped:** March 2026
-**Method:** `requests` + `BeautifulSoup` — each listing page embeds a `__NEXT_DATA__` JSON block (Next.js SSR) that contains the full structured property data without requiring a headless browser.
-
-| Property | Value |
-|---|---|
-| Raw listings scraped | 28,934 |
-| After cleaning | 28,310 |
-| Cities | 15 |
-| Property type | Apartments only (`estate == "FLAT"`) |
-| Price range (kept) | 50,000 – 5,000,000 PLN |
-| Area range (kept) | 15 – 250 m² |
-| Price/m² ceiling | 40,000 PLN/m² |
-
-**15 cities:** Białystok, Bydgoszcz, Gdańsk, Katowice, Kraków, Lublin, Łódź, Poznań, Rzeszów, Szczecin, Toruń, Warszawa, Wrocław, Kielce, Olsztyn.
-
-**Scraping strategy:** large cities (Warszawa, Kraków, Wrocław, Łódź, Poznań, Gdańsk) scraped per-district via `topup_districts.py` to bypass Otodom's pagination limits — yields 3–14× more listings than city-level scraping alone.
-
-### Scraping notes
-
-Otodom.pl uses Next.js server-side rendering. Every listing page contains a `<script id="__NEXT_DATA__">` tag with the full JSON payload — no JavaScript execution required. The scraper extracts:
-
-- Price and price per m² directly from the JSON root
-- Area (`areaInSquareMeters`) and room count (`roomsNumber`) as structured fields — room count arrives as an enum string (`ONE`, `TWO`, `THREE`...) and floor as `GROUND`, `FIRST`, `SECOND`..., both mapped to integers
-- Neighborhood via `location.reverseGeocoding.locations` — filtered by `locationLevel == "district"` for district-level names (Mokotów, Wola, Żoliborz) rather than the city-level fallback that `location.address.district.name` returns for ~95% of listings
-- `isPrivateOwner` boolean distinguishing private sellers from agencies
-
----
-
-## Pipeline
-
-1. **`scrape_otodom.py`** — scrapes Otodom.pl list pages via `__NEXT_DATA__` JSON (no headless browser); outputs `otodom_all.csv`
-2. **`topup_districts.py`** — re-scrapes large cities (Warsaw, Kraków, Wrocław, Łódź, Poznań, Gdańsk) at district level to bypass pagination limits; merges and deduplicates by URL
-3. **`housing_price.ipynb`** — EDA, cleaning, feature engineering, XGBoost training, SHAP explainability, exports model artefacts
-4. **`app.py`** — Streamlit app loading the artefacts; two modes: Estimate Price and Reverse Lookup
-
----
-
-## Features
-
-| Feature | Description | Null % |
-|---|---|---|
-| `area_m2` | Apartment area in square metres | 0% |
-| `rooms` | Number of rooms (Polish convention: bedrooms + living room) | 1.2% |
-| `floor` | Floor number (0 = ground floor) | 3.8% |
-| `city_enc` | LabelEncoded city | 0% |
-| `neighborhood_enc` | LabelEncoded district-level neighborhood | 0.6% |
-| `is_private_owner` | True = private seller, False = agency | 2.1% |
-
-`sub_neighborhood` (residential-level geocoding) was extracted but dropped from the model due to 63.5% null rate. `city` and `neighborhood` string columns are retained in the CSV for display purposes.
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://housing-price-pl.streamlit.app/)
+[![Colab — Baseline EDA](https://img.shields.io/badge/Colab-Baseline%20EDA-F9AB00?logo=googlecolab&logoColor=white&labelColor=555555)](https://colab.research.google.com/drive/1nXcHTvFfS6U8HSlu_Sb0YZniJptyCxnr?usp=sharing)
+[![Colab — Feature Study](https://img.shields.io/badge/Colab-Feature%20Study-F9AB00?logo=googlecolab&logoColor=white&labelColor=555555)](https://colab.research.google.com/drive/1L4MxZNrdZrSq5ULY--fQRK9zgz_NpU0D?usp=sharing)
 
 ---
 
 ## Results
 
-### Model performance
+Evaluated on 36,318 listings scraped from Otodom.pl in April 2026.
 
-| Metric | Value |
-|---|---|
-| R² | 0.790 |
-| MAE | 136,197 PLN |
-| MAPE | 15.7% |
-| Train / test split | 80 / 20 |
-| Target transformation | log1p(price) |
-
-### City-level MAE
-
-| City | N (test) | MAE (PLN) | Notes |
-|---|---|---|---|
-| Łódź | 490 | 65,962 | Lowest prices — tightest absolute error |
-| Lublin | 159 | 67,137 | |
-| Kielce | 152 | 78,901 | |
-| Poznań | 377 | 124,490 | |
-| Wrocław | 744 | 141,039 | |
-| Kraków | 913 | 156,279 | |
-| Warszawa | 1,485 | 160,473 | High variance across districts |
-| Gdańsk | 395 | 211,000 | Jelitkowo premium district inflates error |
-
-3× more training data pushed R² from 0.627 → 0.790 and MAPE from 18.4% → 15.7%.
-
-### SHAP — top features
-
-| Feature | Mean SHAP | Direction |
+| Metric | Baseline (list-view only) | Final model (+ detail features) |
 |---|---|---|
-| `area_m2` | highest | Larger area → higher price |
-| `neighborhood_enc` | high | Premium districts add significant value |
-| `city_enc` | high | Warsaw/Kraków baseline is materially higher |
-| `rooms` | medium | More rooms → higher price, but collinear with area |
-| `floor` | low | Ground floor and top floor show slight discounts |
-| `is_private_owner` | low | Agency listings priced slightly higher on average |
+| R² | 0.820 | **0.903** |
+| MAE | 134,946 PLN | **97,270 PLN** |
+| Median MAPE | ~15% | **7.9%** |
+| Training rows | 35,543 | 26,305 |
+| Features | 6 | 45+ |
+
+Detail features reduced MAE by **~45,000 PLN** on equivalent rows. Adding detail pages was more valuable than adding more listings.
 
 ---
 
 ## Visualizations
 
-### Price distribution by city
-![Price distribution by city](assets/price_distribution.png)
+**Why scraping detail pages matters — MAE across 8 model variants**
 
-*Warsaw and Kraków distributions skew right with fat tails. Łódź and Katowice cluster tightly at lower price/m² values.*
+![Variant comparison](assets/variant_comparison.png)
 
-### Price vs area
-![Price vs area](assets/price_vs_area.png)
+Variants A and D use only list-view features — no detail pages scraped. D and C1 cover identical rows; adding detail features drops MAE from 142k to 100k PLN on the same data. The Final model applies a selective null strategy across all listings with available detail pages.
 
-*Clear positive relationship. Warsaw data points (orange) sit consistently above the regression line for other cities.*
+**Price distribution — 36,318 listings across 17 cities**
 
-### Neighborhood price gaps — top 5 cities
-![Neighborhood prices](assets/neighborhood_prices.png)
+![Price distribution](assets/price_distribution.png)
 
-*District-level price spread within Warsaw reaches 10,000+ PLN/m² between Śródmieście and outer districts. Justifies the neighborhood feature.*
+The bulk of listings falls between 200k and 800k PLN. The right tail thins out above 1M — reflected in higher model error at the top end (see below).
 
-### Actual vs predicted
+**Median price per m² by city**
+
+![City price per m²](assets/city_price_per_m2.png)
+
+Warsaw and Gdańsk lead by a wide margin. The gap between the top 3 and the remaining 14 cities is larger than the spread within those 14 — location accounts for 23% of model output (city + neighborhood SHAP combined).
+
+**Predicted vs actual price — test set (5,261 listings)**
+
 ![Actual vs predicted](assets/actual_vs_predicted.png)
 
-*R² = 0.790. Main source of error: luxury segment above 1.5M PLN where the model systematically underestimates.*
+Well-calibrated across the core 300k–1.2M PLN range. The scatter widens at higher prices: rarer luxury listings have less training data, and small relative errors translate to larger absolute ones.
 
-### SHAP — global feature importance
-![SHAP bar](assets/shap_importance.png)
+---
 
-*Area dominates. Neighborhood and city encoding together account for most of the location premium.*
+## Data Collection
 
-### SHAP — beeswarm
-![SHAP beeswarm](assets/shap_beeswarm.png)
+**Two-phase scraping pipeline:**
 
-*High area values (red) push predictions up consistently. Neighborhood encoding shows wide spread — the location effect is non-linear and city-specific.*
+**Phase 1 — List-view scraping (`scraper.py`)**
+
+Scrapes Otodom.pl category pages using `requests` + `BeautifulSoup`. Each page embeds a `<script id="__NEXT_DATA__">` JSON block (Next.js SSR) with the full structured payload — no headless browser required. Covers all 17 cities at both city-level and district-level URLs to bypass Otodom's 500-listing pagination limit.
+
+**Phase 2 — Detail-page scraping (`scrape_details.py`)**
+
+Fetches individual listing pages for all collected URLs to extract features unavailable in the list view: year built, building type, heating type, finish condition, and 13 boolean amenity flags (elevator, balcony, garage, etc.). Incremental — only new URLs are fetched on re-runs. Resumable every 100 records.
+
+| Property | Value |
+|---|---|
+| Listings scraped | 36,318 |
+| Detail pages scraped | 35,225 (84.1% coverage) |
+| Cities | 17 |
+| Property type | Apartments (`estate == "FLAT"`) |
+| Price range | 50,000 – 5,000,000 PLN |
+| Area range | 15 – 250 m² |
+| Price/m² ceiling | 40,000 PLN/m² |
+| International listings | Filtered out by currency check (`currency == "PLN"`) |
+
+**17 cities:** Białystok, Bydgoszcz, Częstochowa, Gdańsk, Gdynia, Katowice, Kielce, Kraków, Lublin, Łódź, Olsztyn, Poznań, Rzeszów, Szczecin, Toruń, Warszawa, Wrocław
+
+---
+
+## Feature Engineering
+
+### Encoding
+
+**Target encoding** for `city` and `neighborhood` — each location is replaced by the mean `log1p(price)` in the training set, fit on train data only (anti-leakage). This directly encodes the location price signal rather than an arbitrary integer order.
+
+**One-hot encoding** for low-cardinality categoricals: `stan_wykonczenia` (finish condition), `rodzaj_zabudowy` (building type), `ogrzewanie` (heating), `forma_wlasnosci` (ownership form), `rynek` (primary/secondary market), `okna` (windows).
+
+**Boolean flags** cast to int: `winda`, `balkon`, `taras`, `ogrodek`, `piwnica`, `garaz`, `klimatyzacja`, and 6 others.
+
+### Null strategy (selective)
+
+| Column | Strategy | Reason |
+|---|---|---|
+| `rok_budowy`, `stan_wykonczenia` | Drop rows | Top-6 SHAP — imputing adds noise |
+| `ogrzewanie`, `rodzaj_zabudowy`, `forma_wlasnosci`, `okna` | Impute mode | Low SHAP signal |
+| `liczba_pieter` | Impute median | Low SHAP signal |
+| `neighborhood` | Fill with city name | Preserves row |
+| `rooms`, `floor` | Impute city median | Preserves row |
+
+### Top features by SHAP importance
+
+| Rank | Feature | Mean \|SHAP\| |
+|---|---|---|
+| 1 | `area_m2` | 0.246 |
+| 2 | `neighborhood_enc` | 0.162 |
+| 3 | `rok_budowy` | 0.075 |
+| 4 | `city_enc` | 0.068 |
+| 5 | `winda` | 0.027 |
+| 6 | `stan_wykonczenia_ready_to_use` | 0.023 |
+| 7 | `rooms` | 0.016 |
+| 8 | `rynek_primary` | 0.011 |
+
+---
+
+## Research: Feature Study
+
+Eight model variants were tested to determine the optimal data collection strategy. Full analysis in [`notebooks/feature_study.ipynb`](notebooks/feature_study.ipynb).
+
+| Variant | Rows | Features | MAE PLN | R² | Notes |
+|---|---|---|---|---|---|
+| A | 35,543 | base only | 134,946 | 0.820 | No detail scraping |
+| B1 | 29,871 | base + details | 96,889 | 0.903 | All nulls imputed |
+| B2 | 14,421 | base + details | 93,107 | 0.902 | All null rows dropped |
+| **Final** | **26,305** | **base + details** | **97,270** | **0.903** | **Selective null strategy** |
+| C1 | 14,727 | base + details | 100,806 | 0.907 | Half data, stratified |
+| C2 | 7,071 | base + details | 99,342 | 0.894 | Quarter data, stratified |
+| D | 14,727 | base only | 142,279 | 0.813 | Same rows as C1, no details |
+| E | 29,871 | top-10 SHAP | 101,488 | 0.893 | Feature selection hurts |
+
+**Key findings:**
+1. Detail features reduce MAE by ~45k PLN on equivalent rows (D → Final: 142k → 97k)
+2. Data volume has diminishing returns — halving rows costs only ~4k PLN MAE
+3. Scraping detail pages is more valuable than scraping more listings
+4. Feature selection hurts — full feature set beats top-10 SHAP subset
+
+---
+
+## Model
+
+**XGBoost** regressor, `log1p` target, `expm1` at inference.
+
+```python
+XGBRegressor(
+    n_estimators=800, learning_rate=0.05, max_depth=6,
+    subsample=0.8, colsample_bytree=0.8, min_child_weight=5,
+    random_state=17, n_jobs=-1,
+)
+```
+
+80/20 train-test split, `random_state=17`. Experiment tracking via MLflow → DagsHub.
+
+---
+
+## Pipeline Architecture
+
+**1. Data collection** — `scraper.py` (17 cities, list-view) + `scrape_details.py` (incremental detail pages) → `data/raw/` → `git push`
+
+**2. Retraining** — GitHub Actions triggers on push to `data/raw/`:
+- `validate.py` — schema check, record counts per city
+- `train.py` — XGBoost + MLflow logging to DagsHub
+- `evaluate.py` — candidate vs production on the same test set
+  - candidate better → commit `model_artefacts/`
+  - candidate worse → log run, exit without deploying
+
+**3. Deployment** — Streamlit Community Cloud auto-redeploys on push to `main` when `model_artefacts/` changed
+
+**Evaluation logic:** both models are scored on the **same new test set** — avoids comparing models trained on different data distributions.
 
 ---
 
 ## Streamlit App
 
-Two modes accessible via tabs at the top of the page.
-
 ### Estimate Price
 
-![App — Estimate Price 1/2](assets/app_estimate1.png)
+Input: city, neighborhood, area, rooms, floor, year built, finish condition, elevator.
 
-![App — Estimate Price 2/2](assets/app_estimate2.png)
+Output:
+- Estimated price + price/m² + city median + deviation from median
+- Price distribution histogram — neighborhood overlaid on city
+- Cross-city benchmark — same spec predicted across all 17 cities
+- Neighborhood ranking — all districts in the selected city
+- Price sensitivity chart — tornado diagram: area ±20%, rooms ±1, floor ±1, year built ±10, elevator No→Yes, condition worst→best
+- Comparable listings table — 6 closest real listings with links to Otodom.pl
 
-Input parameters in a horizontal bar: city, neighborhood, area (m²), rooms, floor, private seller toggle. After clicking **Estimate Price**:
-
-- **4 KPI metrics** — estimated total price, price/m², city median, % deviation from city median
-- **Price distribution histogram** — selected neighborhood overlaid on full city distribution, estimate marked with a vertical line
-- **Cross-city benchmark** — the same flat spec predicted across all 15 cities ranked by PLN/m²
-- **Neighborhood ranking** — all districts in the selected city ranked by predicted PLN/m² for the given spec
-- **Price sensitivity chart** — tornado diagram showing how ±20% area, ±1 room, ±1 floor shifts the estimate
-- **Comparable listings table** — 6 closest real listings from the scraped dataset with hyperlinks to the original Otodom.pl pages (links may be inactive after sale)
+Warning shown when estimate < 300,000 PLN (limited training data in that range).
 
 ### Reverse Lookup
 
-![App — Reverse Lookup](assets/app_reverse.png)
+Input: city (all or specific), neighborhood (all or specific), budget, rooms, year built, condition, elevator.
 
-Input: budget (PLN), minimum rooms, private seller toggle. After clicking **Find Apartments**:
+Output: maximum achievable area per city/neighborhood within budget.
 
-- **Algorithm's Choice card** — the single city/neighborhood combination with the highest achievable area for the given budget
-- **Purchasing power chart** — horizontal bar chart showing the maximum area (m²) achievable per city
-- **Results table** — all matching cities with neighborhood, area, estimated price, PLN/m², and percentage of budget used
-
-The reverse lookup uses binary search (20 iterations per city/neighborhood pair) to find the maximum area fitting within the budget.
-
----
-
-## Key Takeaways
-
-1. **Location is the dominant non-size factor.** Adding district-level neighborhood encoding reduced Warsaw MAE by 40% relative to a city-only model. The price gap between Śródmieście and outer Warsaw districts exceeds the entire price range of Łódź.
-2. **Room count adds limited independent signal.** After controlling for area, rooms contribute modestly — the two features are highly correlated (r ≈ 0.72). Polish listings report room count using a convention that excludes kitchen unless open-plan, creating additional noise.
-3. **Floor matters less than expected.** Ground floor and top floor discounts are statistically present but economically small (~20–30k PLN effect for a 50m² flat), consistent with a market where elevator availability and building type matter more than floor number alone.
-4. **Private seller vs agency has minimal price signal.** The `is_private_owner` feature has near-zero SHAP importance. Agencies may price similarly to private sellers at listing stage; actual transaction prices likely differ.
-5. **Log-transforming the target was essential.** Raw price residuals showed severe heteroscedasticity. With log1p transformation, residuals are approximately normal and the model generalises better across the full price range.
-
----
-
-## Limitations & potential improvements
-
-| Limitation | Why | Potential fix |
-|---|---|---|
-| No apartment condition | Otodom exposes `stan wykończenia` (`move-in ready` / `needs renovation` / `shell`) only on individual listing pages, not on list view | Scrape each of the 28k listing URLs separately — ~28,000 additional requests, estimated +0.05–0.08 R² |
-| No year built | Same — detail page only | Same enrichment pass |
-| No building type | (block / tenement / new development) — detail page only | Same enrichment pass |
-| Label encoding for city/neighborhood | Ordinal encoding implies false ordering between cities | Replace with target encoding (mean price per city/neighborhood) or one-hot |
-| Static dataset | Prices scraped March 2026 — market drifts | Schedule monthly re-scrape via `scrape_otodom.py` + `topup_districts.py` |
-
-The scraping architecture already supports the enrichment pass — each `Listing` object stores the original URL, so a follow-up script can iterate `otodom_all.csv`, fetch individual pages, and join the extra fields without re-scraping the full dataset.
+Uses vectorised batch binary search — all city/neighborhood pairs are searched simultaneously in 14 model calls rather than one call per iteration per pair.
 
 ---
 
 ## Running Locally
 
 ```bash
-# 1. Clone and install dependencies
+git clone https://github.com/Mewhoosh/housing-price-pl.git
+cd housing-price-pl
 pip install -r requirements.txt
 
-# 2. Scrape fresh data (optional — CSV included in repo)
-python scrape_otodom.py
+# scrape listings (optional — data included)
+python scraper.py
 
-# 3. Run the notebook to retrain (optional — model artefacts included)
-# Open housing_price.ipynb in Jupyter / Colab and run all cells
+# scrape detail pages for all listing URLs
+python scrape_details.py
 
-# 4. Launch the app
+# train model
+python -m src.models.train
+
+# evaluate and promote if better
+python -m src.models.evaluate
+
+# launch app
 streamlit run app.py
 ```
 
-**Python version:** 3.11+
-**Key dependencies:** `streamlit`, `xgboost`, `scikit-learn`, `shap`, `pandas`, `numpy`, `matplotlib`, `joblib`, `requests`, `beautifulsoup4`
-
----
-
-## Deploying to Streamlit Community Cloud (free)
-
-1. Push the repository to GitHub (include `model_artefacts/` and `data/raw/otodom_all.csv`)
-2. Go to [share.streamlit.io](https://share.streamlit.io) → New app
-3. Select repo, branch `main`, main file `app.py`
-4. Click Deploy — the app is live at `https://your-app-name.streamlit.app` within ~2 minutes
-5. Update the badge URL at the top of this README
-
-No paid infrastructure required. The free tier supports one active app with 1 GB RAM.
+**Python:** 3.11+ — **Key dependencies:** `streamlit`, `xgboost`, `scikit-learn`, `shap`, `pandas`, `numpy`, `matplotlib`, `joblib`, `mlflow`, `dagshub`, `requests`, `beautifulsoup4`
 
 ---
 
@@ -232,19 +227,49 @@ No paid infrastructure required. The free tier supports one active app with 1 GB
 
 ```
 housing-scraper/
-├── scrape_otodom.py          # Scraper — requests + BeautifulSoup, 15 cities
-├── topup_districts.py        # Augments large cities with district-level scraping + dedup
-├── housing_price.ipynb       # EDA, feature engineering, model training, SHAP
-├── app.py                    # Streamlit app — Estimate Price + Reverse Lookup
+├── scraper.py                        # Phase 1: list-view scraping, 17 cities + districts
+├── scrape_details.py                 # Phase 2: detail-page scraping, incremental + resumable
+├── app.py                            # Streamlit app
 ├── requirements.txt
+│
+├── src/
+│   ├── features/
+│   │   └── build_features.py         # cleaning, target encoding, OHE, null strategy
+│   ├── models/
+│   │   ├── train.py                  # XGBoost training + MLflow logging
+│   │   └── evaluate.py               # candidate vs production comparison, auto-promote
+│   └── data/
+│       ├── validate.py               # schema check, record counts, null rates
+│       └── merge_snapshots.py        # merge CSV snapshots, deduplicate by URL
+│
+├── notebooks/
+│   ├── feature_study.ipynb           # 8-variant research study
+│   └── eda_baseline.ipynb            # original EDA + baseline model
+│
 ├── data/
-│   └── raw/
-│       └── otodom_all.csv    # 28,310 cleaned listings
+│   ├── raw/
+│   │   ├── otodom_all.csv            # current listings (overwritten on re-scrape)
+│   │   └── otodom_details.csv        # detail features, appended monthly
+│   └── snapshots/                    # monthly listing snapshots for diff
+│
 ├── model_artefacts/
-│   ├── xgb_model.joblib      # Trained XGBoost model (~2.9 MB)
-│   ├── le_city.joblib        # LabelEncoder for city
-│   ├── le_neighborhood.joblib
-│   ├── city_neighborhoods.json   # city → list of neighborhoods mapping
-│   └── meta.json             # feature ranges for UI sliders
-└── assets/                   # Screenshots for README
+│   ├── xgb_model.joblib              # production model
+│   ├── target_enc_city.json          # {city: mean_log_price}
+│   ├── target_enc_neighborhood.json  # {neighborhood: mean_log_price}
+│   ├── city_neighborhoods.json       # city → [neighborhoods] for UI dropdowns
+│   ├── meta.json                     # feature list, OHE categories, input ranges
+│   └── production_meta.json          # MAE, R², MAPE of live model
+│
+└── .github/
+    └── workflows/
+        └── train.yml                 # triggered on push to data/raw/
 ```
+
+---
+
+## Limitations
+
+- **Asking prices, not transactions** — Otodom lists offer prices; actual sale prices typically differ by 3–8%
+- **<300k PLN segment** — limited training data; model MAPE in this range is ~30%
+- **Monthly cadence** — prices scraped April 2026; market drift accumulates between scrapes
+- **Polish market only** — international listings filtered by currency (`currency == "PLN"`)
